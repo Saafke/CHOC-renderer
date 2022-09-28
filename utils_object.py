@@ -349,7 +349,7 @@ class ObjectUtils():
                     else:
                         print("yAngle:", math.degrees(yAngle), "xAngle:", math.degrees(xAngle - math.radians(90)), "rand_hand_rot:", math.degrees(rand_hand_rot))
                         print("y_rot", math.degrees(y_rot), "x_rot", math.degrees(x_rot))
-                        xx=json54
+                        #xx=json54
                         # First rotation to rotation matrix
                         r1 = R.from_euler("YXZ", [yAngle, xAngle - math.radians(90), rand_hand_rot], degrees=False)
                         rot_matrix1 = r1.as_matrix()

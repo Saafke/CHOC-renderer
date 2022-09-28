@@ -6,7 +6,7 @@
 
 `sudo snap blender --classic`
 
-At the time of writing this repository, Blender 3.2.1 was used.
+At the time of writing this repository, Blender 3.3 was used.
 
 #### Dependencies 
 
@@ -56,7 +56,10 @@ You can change the settings in the config.py file.
 
 #### Example run commands:
 
-```blender --python render_all.py <DATA_FOLDER>``` or
+```blender --python render_all.py <DATA_FOLDER>``` 
+
+or
+
 ```blender --background --python render_all.py <DATA_FOLDER>```
 
 ## Labelling the surface in the scene

@@ -4,7 +4,8 @@ Written by Xavier Weber
 
 Example run command 
 	$ blender --background --python render_all.py -- /media/xavier/DATA/SOM_renderer_DATA or
-	$ blender --python render_all.py -- /media/xavier/DATA/SOM_renderer_DATA
+	$ blender --python render_all.py -- /media/xavier/DATA/SOM_renderer_DATA /media/DATA/SOM_renderer_DATA/renders
+
 """
 import sys
 sys.path.append(".")
@@ -17,7 +18,6 @@ import math
 import numpy as np
 np.set_printoptions(suppress=True)
 import json
-
 
 # NOTE: change this to your python directories
 sys.path.append('/home/xavier/anaconda3/envs/som-env/lib/python3.10/site-packages')
@@ -36,9 +36,16 @@ import utils_object
 import utils_projection
 import utils_table
 
+#To not print out blender stuff, only python prints, uncomment the following line:
+#sys.stdout = sys.stderr
+# and run this command:
+# blender --background --python run_render.py 1> nul
+
+
+
 class Render :
 
-	def __init__(self, data_folder):
+	def __init__(self, data_folder, render_out_folder):
 		self.im_count = 1
 		
 		self.locationx, self.locationy, self.locationz = 0,0,0
@@ -54,7 +61,7 @@ class Render :
 		self.cur_texspace_path = ""
 		self.cur_obj_class = ""
 
-		self.set_data_paths(data_folder)
+		self.set_data_paths(data_folder, render_out_folder)
 
 		with open(config.paths["table_normals"]) as f:
 			self.normal_json = json.load(f)
@@ -107,6 +114,12 @@ class Render :
 			#devices[0][0].use = True
 			bpy.data.scenes[sce].render.engine = 'CYCLES' #only cycles engine can use gpu
 			bpy.data.scenes[sce].cycles.device = 'GPU'
+
+			# To speed up the rendering, while keeping the realism
+			bpy.data.scenes[sce].cycles.max_bounces = 6
+			bpy.data.scenes[sce].cycles.tile_size = 65536 #(256*256)
+
+		
 		else:
 			bpy.data.scenes[sce].render.engine = 'BLENDER_EEVEE'
 			# bpy.data.scenes[sce].eevee.use_soft_shadows = False
@@ -261,6 +274,8 @@ class Render :
 		# Get grasp files
 		grasp_folder = os.path.join(DATA_FOLDER, 'grasps', 'meshes')
 		grasps = os.listdir(grasp_folder)
+		grasps.sort()
+
 		#random.shuffle(grasps)
 
 		# Get background files
@@ -281,24 +296,22 @@ class Render :
 		# Loop over the grasps (and therefore also objects) (288)
 		counterrr = 0
 		for g in grasps:
-
-			# Get the grasp
+			
+			# Get the grasp path and index
 			grasp_path = os.path.join(DATA_FOLDER, 'grasps', 'meshes', g)
-
-			# Get corresponding info of this grasp by looking into the JSON
 			if g == "0000.glb":
 				graspIdx = 0
 			else:
 				graspIdx = g[:-4].lstrip("0")
 				graspIdx = int(graspIdx)
-			
+			# Get corresponding info of this grasp by looking into the JSON
 			object_string = grasps_info['grasps'][graspIdx]['object_string']
 			object_cat_idx = grasps_info['grasps'][graspIdx]['object_category']
 			object_id = grasps_info['grasps'][graspIdx]['object_id']
 			object_cat_name = grasps_info['categories'][object_cat_idx]['name']
 			object_texspace_size = object_info['objects'][int(object_id)]['texture_space_variable']
 			self.cur_obj_class = object_cat_name
-			print(object_id, object_string, object_cat_idx, object_cat_name, object_texspace_size)
+			#print(object_id, object_string, object_cat_idx, object_cat_name, object_texspace_size)
 
 			# Loop over the backgrounds (30)
 			for bg in background_rgbs:
@@ -313,21 +326,13 @@ class Render :
 					# Set background and corresponding lights
 					self.set_background(bg)
 					CL.set_psuedo_realistic_light_per_background(bg)
-					#self.set_background("000010.png")
 
-					# Set random light
-					#CL.set_light()
-
-					#model_path = os.path.join(DATA_FOLDER, 'grasps, meshes', graspID_to_objectID[graspIdx])
+					# Get the object path
 					model_string = graspID_to_objectID[str(graspIdx)]
 					model_path = os.path.join(DATA_FOLDER, 'objects', 'centered', "{}.glb".format(model_string))
 					self.cur_nocs_obj_path = os.path.join(DATA_FOLDER, 'objects', 'nocs_y-up', "{}.glb".format(model_string))
 
 					# Load object and hand (checking for collisions)
-					print("grasp_path:", grasp_path)
-					print("model_path:", model_path)
-					print("cur_bg:", self.cur_bg)
-					print("cur_rgb_bg:", self.cur_rgb_bg)
 					_, table_points = utils_table.load_real_table(self.cur_mask_bg, self.cur_depth_bg)
 					hand_objects, location, pose_quat = O.place_object_and_hand(model_path, 
 														   grasp_path, 
@@ -350,7 +355,6 @@ class Render :
 														   add_height=True)
 					# Generate rgb, mask
 					self.render()
-					xx=json5
 					# Generate depth
 					self.render_depth(N)
 					# Remove .exr, save as png
@@ -362,6 +366,7 @@ class Render :
 					# update counter
 					self.im_count += 1
 					counterrr += 1
+					#xx=json5
 					# progress print
 					print("{}: {}/{}\n".format(subset, self.im_count, 129600))
 
@@ -375,7 +380,8 @@ class Render :
 		with open(os.path.join(config.paths['info_dir'], "{:06d}.json".format(self.im_count)), 'w') as f:
 			json.dump(info_dict, f, indent=4, sort_keys=True)
 
-	def set_data_paths(self, data_folder):
+	def set_data_paths(self, data_folder, render_output_folder):
+		config.paths['renders'] = render_output_folder
 		config.paths['objects'] = os.path.join(data_folder, 'objects/centered')
 		config.paths['object_nocs'] = os.path.join(data_folder, 'objects/nocs_y-up')
 		config.paths['objects_json'] = os.path.join(data_folder, 'objects/object_datastructure.json')
@@ -389,17 +395,18 @@ class Render :
 # Import data folder
 argv = sys.argv
 argv = argv[argv.index("--") + 1:]  # get all args after "--"
+if len(argv) < 2:
+	raise Exception("Please specify the path to the dataset folder AND the path to the output folder.")
 DATA_FOLDER = argv[0]
+RENDER_OUT_FOLDER = argv[1] # to save the renders to
 
 # Import classes
-R = Render(DATA_FOLDER) 
+R = Render(DATA_FOLDER, RENDER_OUT_FOLDER) 
 N = node.Nodes()
 #B = utils_blender.BlenderUtils()
 CL = utils_cam_light.CamLightUtils()
 #T = utils_table.TableUtils()
 O = utils_object.ObjectUtils()
-
-R.set_data_paths(DATA_FOLDER)
 
 
 # INITIALIZE SCENE

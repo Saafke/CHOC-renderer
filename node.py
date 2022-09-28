@@ -5,7 +5,7 @@ class Nodes():
 
     def node_setting_init(self):
         """Initializes the node setup for rendering 
-        the combined RGB image, segmentation mask and depth map.
+            the combined RGB image, segmentation mask and depth map.
         """
 
         # Use nodes

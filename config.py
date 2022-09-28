@@ -73,7 +73,7 @@ paths = dict(
     
     textures = '',
     
-    renders = "./renders",
+    renders = '',
     
     backgrounds = '',
     table_normals = '', 
