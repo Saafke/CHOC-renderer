@@ -1,0 +1,413 @@
+"""Renders images w/ labels.
+
+Written by Xavier Weber
+
+Example run command 
+	$ blender --background --python render_all.py -- /media/xavier/DATA/SOM_renderer_DATA or
+	$ blender --python render_all.py -- /media/xavier/DATA/SOM_renderer_DATA
+"""
+import sys
+sys.path.append(".")
+import os
+import random
+import pickle
+import bpy, bmesh
+import mathutils
+import math
+import numpy as np
+np.set_printoptions(suppress=True)
+import json
+
+
+# NOTE: change this to your python directories
+sys.path.append('/home/xavier/anaconda3/envs/som-env/lib/python3.10/site-packages')
+os.environ["OPENCV_IO_ENABLE_OPENEXR"]="1"
+# Libraries that are in the python3.10 folder
+import cv2
+import config
+from PIL import Image
+from scipy.spatial.transform import Rotation as R
+
+# My imports
+import node
+import utils_blender
+import utils_cam_light
+import utils_object
+import utils_projection
+import utils_table
+
+class Render :
+
+	def __init__(self, data_folder):
+		self.im_count = 1
+		
+		self.locationx, self.locationy, self.locationz = 0,0,0
+		self.rotationx, self.rotationy, self.rotationz = 0,0,0
+		self.coord = [0,0,0]
+
+		self.cur_bg = ""
+		self.cur_depth_bg = ""
+		self.cur_mask_bg = ""
+		self.cur_rgb_bg = ""
+		
+		self.cur_nocs_obj_path = ""
+		self.cur_texspace_path = ""
+		self.cur_obj_class = ""
+
+		self.set_data_paths(data_folder)
+
+		with open(config.paths["table_normals"]) as f:
+			self.normal_json = json.load(f)
+
+	def correct_mask(self):
+
+		# Load image
+		seg_og = Image.open(os.path.join(syn_mask_folder, f"{self.im_count:06d}old.png"))
+		data_og = np.asarray(seg_og)
+
+		# -- Correct image 
+		classId = obj2id[cur_obj_class]
+		
+		#Where True, yield x, otherwise yield y.
+		mask = np.where(data_og!=0, classId, data_og) # replace segmentation mask with class id
+		mask = np.where(mask==0, 255, mask) # set background to white
+
+		# set unsigned integer 8-bit
+		im = np.uint8(mask)
+
+		# Save image
+		cv2.imwrite(os.path.join(syn_mask_folder, f"{self.im_count:06d}.png"), im)
+
+		# Delete old
+		os.remove(os.path.join(syn_mask_folder, f"{self.im_count:06d}old.png"))
+
+	def scene_setting_init(self, use_gpu):
+		"""Initializes blender setting configurations."""
+		sce = bpy.context.scene.name
+		bpy.data.scenes[sce].render.engine = config.blender_param['engine_type']
+		bpy.context.scene.render.film_transparent = True
+		bpy.data.scenes[sce].cycles.film_transparent = config.blender_param['film_transparent']
+		bpy.data.scenes[sce].render.use_overwrite = config.blender_param['depth_use_overwrite']
+
+		# Render dimensions
+		bpy.data.scenes[sce].render.resolution_x = config.blender_param['resolution_x']
+		bpy.data.scenes[sce].render.resolution_y = config.blender_param['resolution_y']
+		bpy.data.scenes[sce].render.resolution_percentage = config.blender_param['resolution_percentage']
+		# Alpha threshold for enabling z-pass (depth) map for transparent objects
+		bpy.data.scenes[sce].view_layers["ViewLayer"].pass_alpha_threshold = 0
+		# Use Z-pass (depth)
+		bpy.data.scenes[sce].view_layers["ViewLayer"].use_pass_z = True
+		# Activate object index pass to create segmentation masks
+		bpy.data.scenes[sce].view_layers["ViewLayer"].use_pass_object_index = True
+		if use_gpu:
+			prefs = bpy.context.preferences.addons['cycles'].preferences
+			devices = prefs.get_devices()
+			print(devices)
+			#prefs.compute_device_type = 'CUDA'
+			#devices[0][0].use = True
+			bpy.data.scenes[sce].render.engine = 'CYCLES' #only cycles engine can use gpu
+			bpy.data.scenes[sce].cycles.device = 'GPU'
+		else:
+			bpy.data.scenes[sce].render.engine = 'BLENDER_EEVEE'
+			# bpy.data.scenes[sce].eevee.use_soft_shadows = False
+			# bpy.data.scenes[sce].eevee.use_taa_reprojection = False
+			# bpy.data.scenes[sce].eevee.use_volumetric_lights = False
+			# bpy.data.scenes[sce].eevee.sss_jitter_threshold = 0
+			# bpy.data.scenes[sce].grease_pencil_settings.antialias_threshold = 0
+
+	def set_background(self, background_name):
+		# get full image path to rgb and depth
+		rgb_bg = os.path.join(DATA_FOLDER, 'backgrounds/rgb', background_name)
+		depth_bg = os.path.join(DATA_FOLDER, 'backgrounds/depth', background_name)
+		mask_bg = os.path.join(DATA_FOLDER, 'backgrounds/plane_seg', background_name)
+		# set global current rgb, segmentation and depth backgrounds
+		self.cur_bg = background_name
+		self.cur_rgb_bg = rgb_bg
+		self.cur_mask_bg = mask_bg
+		self.cur_depth_bg = depth_bg
+		# Load background image 
+		image_node = bpy.context.scene.node_tree.nodes[4]
+		image_node.image = bpy.data.images.load(rgb_bg)
+		
+	def render(self):
+		"""Performs check and renders the scene"""
+		sce = bpy.context.scene.name
+		bpy.data.scenes[sce].view_settings.view_transform = "Standard" # Default is Filmic
+		bpy.data.scenes[sce].cycles.samples = 2048# 4096/2 # NOTE: can turn this down, or add time limit
+		bpy.data.scenes[sce].cycles.use_denoising = True
+		bpy.data.scenes[sce].cycles.use_adaptive_sampling = True
+		bpy.data.scenes[sce].cycles.pixel_filter_type = "BLACKMAN_HARRIS"
+		bpy.data.scenes[sce].cycles.filter_width = 1.5
+		bpy.data.scenes[sce].render.film_transparent = True
+
+		# Checks to see if object is at correct position.
+		scene = bpy.context.scene
+		for ob in scene.objects:
+			ob.select_set(False)
+			print("object name:", ob.name)
+			if ob.type == 'MESH' and ob.name != "Table Normal":
+				print("checking")
+				# print("Actual object location = {}, {}, {}".format(ob.location[0]*1000, ob.location[1]*1000, ob.location[2]*1000))
+				# print("Preferred object location = {}".format(coord))
+				# math.isclose(ob.location[0] * 1000, self.coord[0], abs_tol=10**-3)
+				#assert math.isclose(ob.location[1] * 1000, self.coord[1], abs_tol=10**-3)
+				#assert math.isclose(ob.location[2] * 1000, self.coord[2], abs_tol=10**-3)
+				bpy.context.view_layer.objects.active = ob
+		obj = bpy.context.view_layer.objects.active
+
+		# Render the images
+		bpy.ops.render.render(write_still=True)
+
+	def correct_depth(self, combine=False):
+		"""Takes the saved output from Blender (EXR), and converts to PNG.
+		It then deletes the EXR image.
+		Parameters
+		----------
+		combine : boolean
+			Whether you want to combine the object's depth with the depth from the background image.
+		"""
+
+		cur_frame = bpy.context.scene.frame_current
+		# Load original depth in mm
+		depth_og = Image.open(self.cur_depth_bg)
+		data_og = np.asarray(depth_og)
+		# Load object depth in mm
+		im = cv2.imread( os.path.join(config.paths['depth_dir'], f"{self.im_count:06d}.exr"), -1) #-1 unchanged, 0 grayscale
+		
+		# Set non-object to zeros
+		im[im>5000] = 0
+		# Remove infinite values
+		im = np.where( np.isinf(im), 0, im )
+		# Set format to unsigned 16-bit integers
+		im = np.uint16(im)
+		
+		# Write new png JUST TO CHECK, REMOVE THIS LINE AFTER
+		#cv2.imwrite("./new.png", im)
+
+		if combine:
+		# Combine object and background depth. Function: (Where True, yield x, otherwise yield y.)
+			combined = np.where(im == 0, data_og, im)
+			combined = np.uint16(combined)
+			im = combined
+		cv2.imwrite(os.path.join(config.paths['depth_dir'],f"{self.im_count:06d}.png"), im)
+		# Remove .exr file
+		os.remove(os.path.join(config.paths['depth_dir'], f"{self.im_count:06d}.exr"))
+
+	def render_depth(self, N):
+		
+		N.set_depth_nodes()
+		# Settings
+		sce = bpy.context.scene.name
+		bpy.data.scenes[sce].cycles.use_denoising = False
+		bpy.data.scenes[sce].cycles.use_adaptive_sampling = False
+		bpy.data.scenes[sce].cycles.samples = 1
+		bpy.data.scenes[sce].cycles.pixel_filter_type = "GAUSSIAN"
+		bpy.data.scenes[sce].cycles.filter_width = 0.01
+		bpy.data.scenes[sce].render.film_transparent = False
+		bpy.ops.render.render(write_still=True)
+
+	def set_paths(self, subtype, subset):
+
+		# Init directory to store results/renders
+		render_dir = config.paths['renders']
+		# Create sub-directories to store all different render outputs
+		rgb_dir = os.path.join(render_dir,subtype,subset, 'rgb')
+		depth_dir = os.path.join(render_dir,subtype,subset, 'depth')
+		mask_dir = os.path.join(render_dir,subtype,subset, 'mask')
+		nocs_dir = os.path.join(render_dir,subtype,subset, 'nocs')
+		info_dir = os.path.join(render_dir,subtype,subset, 'info')
+
+		def create_dir(path):
+			if not os.path.exists(path):
+				os.mkdir(path)
+
+		# Create these directories
+		create_dir(render_dir)
+		create_dir(os.path.join(render_dir,subtype))
+		create_dir(os.path.join(render_dir,subtype,subset))
+		create_dir(rgb_dir)
+		create_dir(depth_dir)
+		create_dir(mask_dir)
+		create_dir(nocs_dir)
+		create_dir(info_dir)
+
+		# Update config paths
+		config.paths['rgb_dir'] = rgb_dir
+		config.paths['depth_dir'] = depth_dir
+		config.paths['mask_dir'] = mask_dir
+		config.paths['nocs_dir'] = nocs_dir
+		config.paths['info_dir'] = info_dir
+
+	def loop_for_with_grasp(self, N, O, CL, start_idx=1, subtype="hand", subset="train"):
+		"""
+		The loop that renders the desired number of SOM images.
+		- Loop over each grasps 					288
+		 - Loop over each background				30
+		  - Loop over 3 areas						3
+		   - Sample poses  							5
+		-----------------------------------------------
+		Total number of images 					 129600 
+		"""
+		# Reset directory im count
+		self.im_count = start_idx
+		# Reset blender im count
+		current_frame = bpy.context.scene.frame_current
+		bpy.context.scene.frame_set(start_idx)
+		self.set_paths(subtype, subset)
+
+		# Initialise the nodes setup
+		N.node_setting_init()
+
+		# Get grasp files
+		grasp_folder = os.path.join(DATA_FOLDER, 'grasps', 'meshes')
+		grasps = os.listdir(grasp_folder)
+		#random.shuffle(grasps)
+
+		# Get background files
+		background_folder = os.path.join(DATA_FOLDER, 'backgrounds', 'rgb')
+		background_rgbs = os.listdir(background_folder)
+		background_rgbs.sort()
+
+		# GraspID 2 ObjectID mapping
+		f = open(os.path.join(DATA_FOLDER, 'grasps', 'graspId_2_objectId.json'))
+		graspID_to_objectID = json.load(f)
+		# GraspINFO
+		f = open(os.path.join(DATA_FOLDER, 'grasps', 'grasp_datastructure.json'))
+		grasps_info = json.load(f)
+		# objectINFO
+		f = open(os.path.join(DATA_FOLDER, 'objects', 'object_datastructure.json'))
+		object_info = json.load(f)
+
+		# Loop over the grasps (and therefore also objects) (288)
+		counterrr = 0
+		for g in grasps:
+
+			# Get the grasp
+			grasp_path = os.path.join(DATA_FOLDER, 'grasps', 'meshes', g)
+
+			# Get corresponding info of this grasp by looking into the JSON
+			if g == "0000.glb":
+				graspIdx = 0
+			else:
+				graspIdx = g[:-4].lstrip("0")
+				graspIdx = int(graspIdx)
+			
+			object_string = grasps_info['grasps'][graspIdx]['object_string']
+			object_cat_idx = grasps_info['grasps'][graspIdx]['object_category']
+			object_id = grasps_info['grasps'][graspIdx]['object_id']
+			object_cat_name = grasps_info['categories'][object_cat_idx]['name']
+			object_texspace_size = object_info['objects'][int(object_id)]['texture_space_variable']
+			self.cur_obj_class = object_cat_name
+			print(object_id, object_string, object_cat_idx, object_cat_name, object_texspace_size)
+
+			# Loop over the backgrounds (30)
+			for bg in background_rgbs:
+				
+				# Sample random poses above table (5)
+				for i in range(0,1):
+					
+					# Clear scene of mesh and light objects
+					utils_blender.clear_mesh()
+					utils_blender.clear_lights()
+
+					# Set background and corresponding lights
+					self.set_background(bg)
+					CL.set_psuedo_realistic_light_per_background(bg)
+					#self.set_background("000010.png")
+
+					# Set random light
+					#CL.set_light()
+
+					#model_path = os.path.join(DATA_FOLDER, 'grasps, meshes', graspID_to_objectID[graspIdx])
+					model_string = graspID_to_objectID[str(graspIdx)]
+					model_path = os.path.join(DATA_FOLDER, 'objects', 'centered', "{}.glb".format(model_string))
+					self.cur_nocs_obj_path = os.path.join(DATA_FOLDER, 'objects', 'nocs_y-up', "{}.glb".format(model_string))
+
+					# Load object and hand (checking for collisions)
+					print("grasp_path:", grasp_path)
+					print("model_path:", model_path)
+					print("cur_bg:", self.cur_bg)
+					print("cur_rgb_bg:", self.cur_rgb_bg)
+					_, table_points = utils_table.load_real_table(self.cur_mask_bg, self.cur_depth_bg)
+					hand_objects, location, pose_quat = O.place_object_and_hand(model_path, 
+														   grasp_path, 
+														   self.cur_obj_class, 
+														   self.cur_depth_bg,
+														   self.cur_mask_bg,
+														   self.cur_bg,
+														   self.normal_json,
+														   add_height=True)
+					while(utils_table.objectsOverlap(table_points, hand_objects) == True):
+						print("Collision so re-sampling object and hand.")
+						utils_blender.clear_mesh()
+						hand_objects, location, pose_quat = O.place_object_and_hand(model_path, 
+														   grasp_path, 
+														   self.cur_obj_class, 
+														   self.cur_depth_bg,
+														   self.cur_mask_bg,
+														   self.cur_bg,
+														   self.normal_json,
+														   add_height=True)
+					# Generate rgb, mask
+					self.render()
+					xx=json5
+					# Generate depth
+					self.render_depth(N)
+					# Remove .exr, save as png
+					self.correct_depth()
+					# # Generate NOCS
+					O.generate_nocs(N, self.cur_nocs_obj_path, object_texspace_size)
+					# Generate annotation file
+					self.generate_annotation_for_current_generated_image(graspIdx, object_id, bg, pose_quat, location)
+					# update counter
+					self.im_count += 1
+					counterrr += 1
+					# progress print
+					print("{}: {}/{}\n".format(subset, self.im_count, 129600))
+
+	def generate_annotation_for_current_generated_image(self, graspID, objectID, backgroundID, pose, location):
+		info_dict = {}
+		info_dict['grasp_id'] = graspID
+		info_dict['object_id'] = objectID
+		info_dict['background_id'] = backgroundID
+		info_dict['pose_quaternion_wxyz'] = pose
+		info_dict['location_xyz'] = location
+		with open(os.path.join(config.paths['info_dir'], "{:06d}.json".format(self.im_count)), 'w') as f:
+			json.dump(info_dict, f, indent=4, sort_keys=True)
+
+	def set_data_paths(self, data_folder):
+		config.paths['objects'] = os.path.join(data_folder, 'objects/centered')
+		config.paths['object_nocs'] = os.path.join(data_folder, 'objects/nocs_y-up')
+		config.paths['objects_json'] = os.path.join(data_folder, 'objects/object_datastructure.json')
+		
+		config.paths['grasps'] = os.path.join(data_folder, 'grasps/meshes')
+		config.paths['textures'] = os.path.join(data_folder, 'assets/bodywithands/train')
+		config.paths['backgrounds'] = os.path.join(data_folder, 'backgrounds')
+		config.paths['table_normals'] = os.path.join(data_folder, 'backgrounds/normals.json')
+
+
+# Import data folder
+argv = sys.argv
+argv = argv[argv.index("--") + 1:]  # get all args after "--"
+DATA_FOLDER = argv[0]
+
+# Import classes
+R = Render(DATA_FOLDER) 
+N = node.Nodes()
+#B = utils_blender.BlenderUtils()
+CL = utils_cam_light.CamLightUtils()
+#T = utils_table.TableUtils()
+O = utils_object.ObjectUtils()
+
+R.set_data_paths(DATA_FOLDER)
+
+
+# INITIALIZE SCENE
+R.scene_setting_init(config.blender_param['gpu'])
+utils_blender.clear_mesh()
+utils_blender.clear_lights()
+CL.camera_init()
+
+# Render loop
+R.loop_for_with_grasp(N, O, CL, 1, "hand", "train")
+print("Ran succesfully.")
