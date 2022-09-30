@@ -464,15 +464,12 @@ class Render :
 		grasp_folder = os.path.join(DATA_FOLDER, 'grasps', 'meshes')
 		grasps = os.listdir(grasp_folder)
 		grasps.sort()
-		print(grasps, len(grasps))
 		if half == 'first':
 			grasps = grasps[:144]
 			print(grasps, len(grasps))
-			input("here")
 		elif half == 'second':
 			grasps = grasps[144:]
 			print(grasps, len(grasps))
-			input("here")
 		else:
 			raise Exception("wrong half")
 		#random.shuffle(grasps)
@@ -516,7 +513,7 @@ class Render :
 			for bg in background_rgbs:
 			
 
-				# Sample random poses above table (5)
+				# Sample random poses above table (15)
 				for i in range(0,1):
 					
 					# Clear scene of mesh and light objects
@@ -524,7 +521,7 @@ class Render :
 					utils_blender.clear_lights()
 
 					# Set background and corresponding lights
-					bg = "000016.png"
+					#bg = "000016.png"
 					self.set_background(bg)
 					CL.set_psuedo_realistic_light_per_background(bg)
 
@@ -621,7 +618,7 @@ CL.camera_init()
 
 
 R.loop_for_with_grasp(N, O, CL, half=half, subtype="hand", subset="train")
-if half == 'second':
+if half == 'first':
 	R.loop_for_without_grasp(N, O, CL, start_idx=1, subtype="no_hand", subset="train")
 
 print("Ran succesfully.")
