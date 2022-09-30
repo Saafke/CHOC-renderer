@@ -19,7 +19,7 @@ np.set_printoptions(suppress=True)
 import json
 
 # NOTE: change this to your python directories
-sys.path.append('/home/xavier/anaconda3/envs/som-env/lib/python3.10/site-packages')
+sys.path.append('/mnt/storage/Xavier/anaconda3/envs/som-env/lib/python3.10/site-packages')
 os.environ["OPENCV_IO_ENABLE_OPENEXR"]="1"
 # Libraries that are in the python3.10 folder
 import cv2
