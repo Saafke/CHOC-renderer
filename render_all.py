@@ -417,6 +417,8 @@ class Render :
 			start_idx = 1
 		elif half == 'second':
 			start_idx = 86401
+			batch_foldername = "b_{:06d}_{:06d}".format(86001, (86001+999))
+			self.set_batch_paths(subtype, batch_foldername)
 		else:
 			raise Exception("wrong half")
 		
@@ -668,7 +670,6 @@ utils_blender.clear_lights()
 CL.camera_init()
 
 start = time.time()
-
 
 R.loop_for_with_grasp(N, O, CL, half=half, subtype="hand")
 if half == 'first':
