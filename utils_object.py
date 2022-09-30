@@ -273,7 +273,7 @@ class ObjectUtils():
 			else:
 				pass
 
-		location_xyz, pose_quaternion_wxyz = get_random_pose(False, config, cur_mask_bg, cur_depth_bg)
+		location_xyz, pose_quaternion_wxyz = self.get_random_pose(False, config, cur_mask_bg, cur_depth_bg, cur_bg, normal_json)
 
 		# # Get location
 		# x,y,z = self.get_location_on_table(config, cur_mask_bg, cur_depth_bg)
@@ -296,6 +296,7 @@ class ObjectUtils():
 				obj.location[1] = location_xyz[1] / 1000 
 				obj.location[2] = location_xyz[2] / 1000 
 
+				obj.rotation_mode = 'QUATERNION'
 				obj.rotation_quaternion[0] = pose_quaternion_wxyz[0]
 				obj.rotation_quaternion[1] = pose_quaternion_wxyz[1]
 				obj.rotation_quaternion[2] = pose_quaternion_wxyz[2]
@@ -351,7 +352,7 @@ class ObjectUtils():
 
 		return [self.locationx, self.locationy, self.locationz], [self.rotationw, self.rotationx, self.rotationy, self.rotationz]
 
-	def get_random_pose(hand_bool, config, cur_mask_bg, cur_depth_bg):
+	def get_random_pose(self, hand_bool, config, cur_mask_bg, cur_depth_bg, cur_bg, normal_json):
 		"""
 		Computes the randomized 6D pose.
 		"""
@@ -382,6 +383,7 @@ class ObjectUtils():
 		xAngle, yAngle = utils_table.load_rotation_based_on_normal(normal_json, cur_bg)
 
 		if hand_bool:
+			print("xrot:", math.degrees(x_rot), "yrot:", math.degrees(y_rot))
 			# First rotation to rotation matrix
 			r1 = R.from_euler("YXZ", [yAngle, xAngle - math.radians(90), rand_hand_rot], degrees=False)
 			rot_matrix1 = r1.as_matrix()
@@ -395,6 +397,7 @@ class ObjectUtils():
 			r12 = R.from_matrix(rot_matrix12)
 			# X,Y,Z,W
 			quat12 = r12.as_quat()
+			print("quat1:", quat1, "quat12:", quat12)
 			pose_quaternion_wxyz = [quat12[3], quat12[0], quat12[1], quat12[2]]
 			# obj.rotation_mode = 'QUATERNION'
 			# obj.rotation_quaternion[0] = quat12[3]
@@ -499,7 +502,7 @@ class ObjectUtils():
 				pass
 		###
 
-		location_xyz, pose_quaternion_wxyz = get_random_pose(False, config, cur_mask_bg, cur_depth_bg)
+		location_xyz, pose_quaternion_wxyz = self.get_random_pose(True, config, cur_mask_bg, cur_depth_bg, cur_bg, normal_json)
 		
 		# Loop over meshes, set the 6D pose
 		scene = bpy.context.scene
@@ -512,6 +515,7 @@ class ObjectUtils():
 				obj.location[1] = location_xyz[1] / 1000 
 				obj.location[2] = location_xyz[2] / 1000 
 
+				obj.rotation_mode = 'QUATERNION'
 				obj.rotation_quaternion[0] = pose_quaternion_wxyz[0]
 				obj.rotation_quaternion[1] = pose_quaternion_wxyz[1]
 				obj.rotation_quaternion[2] = pose_quaternion_wxyz[2]
