@@ -17,6 +17,7 @@ import math
 import numpy as np
 np.set_printoptions(suppress=True)
 import json
+import time
 
 # NOTE: change this to your python directories
 sys.path.append('/mnt/storage/Xavier/anaconda3/envs/som-env/lib/python3.10/site-packages')
@@ -218,38 +219,6 @@ class Render :
 		bpy.data.scenes[sce].render.film_transparent = False
 		bpy.ops.render.render(write_still=True)
 
-	def set_paths(self, subtype, subset):
-
-		# Init directory to store results/renders
-		render_dir = config.paths['renders']
-		# Create sub-directories to store all different render outputs
-		rgb_dir = os.path.join(render_dir,subtype,subset, 'rgb')
-		depth_dir = os.path.join(render_dir,subtype,subset, 'depth')
-		mask_dir = os.path.join(render_dir,subtype,subset, 'mask')
-		nocs_dir = os.path.join(render_dir,subtype,subset, 'nocs')
-		info_dir = os.path.join(render_dir,subtype,subset, 'info')
-
-		def create_dir(path):
-			if not os.path.exists(path):
-				os.mkdir(path)
-
-		# Create these directories
-		create_dir(render_dir)
-		create_dir(os.path.join(render_dir,subtype))
-		create_dir(os.path.join(render_dir,subtype,subset))
-		create_dir(rgb_dir)
-		create_dir(depth_dir)
-		create_dir(mask_dir)
-		create_dir(nocs_dir)
-		create_dir(info_dir)
-
-		# Update config paths
-		config.paths['rgb_dir'] = rgb_dir
-		config.paths['depth_dir'] = depth_dir
-		config.paths['mask_dir'] = mask_dir
-		config.paths['nocs_dir'] = nocs_dir
-		config.paths['info_dir'] = info_dir
-
 	def re_render_loop(self, subtype, subset):
 		"""
 		Loops over the saved images, and re-renders them.
@@ -347,7 +316,7 @@ class Render :
 			# progress print
 			print("{}: {}/{}\n".format(subset, self.im_count, len(json_files)))
 
-	def loop_for_without_grasp(self, N, O, CL, start_idx=1, subtype="no_hand", subset="train"):
+	def loop_for_without_grasp(self, N, O, CL, start_idx=1, subtype="no_hand"):
 		"""
 		The loop that renders the desired number of SOM images.
 		- Loop over each object 					48
@@ -361,10 +330,7 @@ class Render :
 		# Reset blender im count
 		current_frame = bpy.context.scene.frame_current
 		bpy.context.scene.frame_set(start_idx)
-		self.set_paths(subtype, subset)
-
-		# Initialise the nodes setup
-		N.node_setting_init()
+		self.set_parent_paths(subtype=subtype)
 
 		# Get background files
 		background_folder = os.path.join(DATA_FOLDER, 'backgrounds', 'rgb')
@@ -381,7 +347,6 @@ class Render :
 		# object_folder = os.path.join(DATA_FOLDER, 'objects', 'centered', "{}.glb".format(model_string))
 		
 		# Loop over the objects (48)
-		counterrr = 0
 		for obj_path in object_paths:
 			
 			# Get corresponding info of this object by looking into the JSON
@@ -396,8 +361,14 @@ class Render :
 			for bg in background_rgbs:
 			
 				# Sample random poses above table (6)
-				for i in range(0,1):
+				for i in range(0,6):
 					
+					# Change save folders based on current_image_count
+					if (self.im_count-1) % 1000 == 0:
+						batch_foldername = "b_{:06d}_{:06d}".format(self.im_count, (self.im_count+999))
+						self.set_batch_paths(subtype, batch_foldername)
+					
+					N.node_setting_init()
 					# Clear scene of mesh and light objects
 					utils_blender.clear_mesh()
 					utils_blender.clear_lights()
@@ -426,14 +397,13 @@ class Render :
 					# # Generate NOCS
 					O.generate_nocs(N, self.cur_nocs_obj_path, object_texspace_size)
 					# Generate annotation file
-					self.generate_annotation_for_current_generated_image(None, object_id, bg, pose_quat, location)
+					self.generate_annotation_for_current_generated_image(None, object_id, bg, pose_quat, location, flip_box_flag=False)
 					# update counters
 					self.im_count += 1
-					counterrr += 1
 					# progress print
-					print("{}: {}/{}\n".format(subset, self.im_count, 8640))
+					print("{}/{}\n".format(self.im_count, 8640))
 
-	def loop_for_with_grasp(self, N, O, CL, start_idx=1, subtype="hand", subset="train"):
+	def loop_for_with_grasp(self, N, O, CL, half='first', subtype="hand"):
 		"""
 		The loop that renders the desired number of SOM images.
 		- Loop over each grasps 					288
@@ -443,21 +413,34 @@ class Render :
 		-----------------------------------------------
 		Total number of images 					 129600 
 		"""
+		if half == 'first':
+			start_idx = 1
+		elif half == 'second':
+			start_idx = 86401
+			batch_foldername = "b_{:06d}_{:06d}".format(86001, (86001+999))
+			self.set_batch_paths(subtype, batch_foldername)
+		else:
+			raise Exception("wrong half")
+		
 		# Reset directory im count
 		self.im_count = start_idx
 		# Reset blender im count
 		current_frame = bpy.context.scene.frame_current
 		bpy.context.scene.frame_set(start_idx)
-		self.set_paths(subtype, subset)
-
-		# Initialise the nodes setup
-		N.node_setting_init()
+		self.set_parent_paths(subtype=subtype)
 
 		# Get grasp files
 		grasp_folder = os.path.join(DATA_FOLDER, 'grasps', 'meshes')
 		grasps = os.listdir(grasp_folder)
 		grasps.sort()
-
+		if half == 'first':
+			grasps = grasps[:144]
+			print(grasps, len(grasps))
+		elif half == 'second':
+			grasps = grasps[144:]
+			print(grasps, len(grasps))
+		else:
+			raise Exception("wrong half")
 		#random.shuffle(grasps)
 
 		# Get background files
@@ -476,7 +459,6 @@ class Render :
 		object_info = json.load(f)
 
 		# Loop over the grasps (and therefore also objects) (288)
-		counterrr = 0
 		for g in grasps:
 			
 			# Get the grasp path and index
@@ -495,65 +477,70 @@ class Render :
 			self.cur_obj_class = object_cat_name
 			#print(object_id, object_string, object_cat_idx, object_cat_name, object_texspace_size)
 
-			# # Loop over the backgrounds (30)
-			# for bg in background_rgbs:
+			# Loop over the backgrounds (30)
+			for bg in background_rgbs:
 			
 
-			# 	# Sample random poses above table (5)
-			# 	for i in range(0,1):
+				# Sample random poses above table (15)
+				for i in range(0,15):
 					
-			# Clear scene of mesh and light objects
-			utils_blender.clear_mesh()
-			utils_blender.clear_lights()
+					# Change save folders based on current_image_count
+					if (self.im_count-1) % 1000 == 0:
+						batch_foldername = "b_{:06d}_{:06d}".format(self.im_count, (self.im_count+999))
+						self.set_batch_paths(subtype, batch_foldername)
+					N.node_setting_init()
 
-			# Set background and corresponding lights
-			bg = "000016.png"
-			self.set_background(bg)
-			CL.set_psuedo_realistic_light_per_background(bg)
+					# Clear scene of mesh and light objects
+					utils_blender.clear_mesh()
+					utils_blender.clear_lights()
 
-			# Get the object path
-			model_string = graspID_to_objectID[str(graspIdx)]
-			model_path = os.path.join(DATA_FOLDER, 'objects', 'centered', "{}.glb".format(model_string))
-			self.cur_nocs_obj_path = os.path.join(DATA_FOLDER, 'objects', 'nocs_y-up', "{}.glb".format(model_string))
+					# Set background and corresponding lights
+					#bg = "000016.png"
+					self.set_background(bg)
+					CL.set_psuedo_realistic_light_per_background(bg)
 
-			# Load object and hand (checking for collisions)
-			_, table_points = utils_table.load_real_table(self.cur_mask_bg, self.cur_depth_bg)
-			hand_objects, location, pose_quat, flip_box_flag = O.place_object_and_hand(model_path, 
-													grasp_path,
-													object_cat_idx, 
-													self.cur_obj_class, 
-													self.cur_depth_bg,
-													self.cur_mask_bg,
-													self.cur_bg,
-													self.normal_json,
-													add_height=True)
-			while(utils_table.objectsOverlap(table_points, hand_objects) == True):
-				print("Collision so re-sampling object and hand.")
-				utils_blender.clear_mesh()
-				hand_objects, location, pose_quat, flip_box_flag = O.place_object_and_hand(model_path, 
-													grasp_path, 
-													object_cat_idx,
-													self.cur_obj_class, 
-													self.cur_depth_bg,
-													self.cur_mask_bg,
-													self.cur_bg,
-													self.normal_json,
-													add_height=True)
-			# Generate rgb, mask
-			self.render()
-			# Generate depth
-			self.render_depth(N)
-			# Remove .exr, save as png
-			self.correct_depth()
-			# # Generate NOCS
-			O.generate_nocs(N, self.cur_nocs_obj_path, object_texspace_size)
-			# Generate annotation file
-			self.generate_annotation_for_current_generated_image(graspIdx, object_id, bg, pose_quat, location, flip_box_flag)
-			# update counter
-			self.im_count += 1
-			counterrr += 1
-			# progress print
-			print("{}: {}/{}\n".format(subset, self.im_count, 129600))
+					# Get the object path
+					model_string = graspID_to_objectID[str(graspIdx)]
+					model_path = os.path.join(DATA_FOLDER, 'objects', 'centered', "{}.glb".format(model_string))
+					self.cur_nocs_obj_path = os.path.join(DATA_FOLDER, 'objects', 'nocs_y-up', "{}.glb".format(model_string))
+
+					# Load object and hand (checking for collisions)
+					_, table_points = utils_table.load_real_table(self.cur_mask_bg, self.cur_depth_bg)
+					hand_objects, location, pose_quat, flip_box_flag = O.place_object_and_hand(model_path, 
+															grasp_path,
+															object_cat_idx, 
+															self.cur_obj_class, 
+															self.cur_depth_bg,
+															self.cur_mask_bg,
+															self.cur_bg,
+															self.normal_json,
+															add_height=True)
+					while(utils_table.objectsOverlap(table_points, hand_objects) == True):
+						print("Collision so re-sampling object and hand.")
+						utils_blender.clear_mesh()
+						hand_objects, location, pose_quat, flip_box_flag = O.place_object_and_hand(model_path, 
+															grasp_path, 
+															object_cat_idx,
+															self.cur_obj_class, 
+															self.cur_depth_bg,
+															self.cur_mask_bg,
+															self.cur_bg,
+															self.normal_json,
+															add_height=True)
+					# Generate rgb, mask
+					self.render()
+					# Generate depth
+					self.render_depth(N)
+					# Remove .exr, save as png
+					self.correct_depth()
+					# # Generate NOCS
+					O.generate_nocs(N, self.cur_nocs_obj_path, object_texspace_size)
+					# Generate annotation file
+					self.generate_annotation_for_current_generated_image(graspIdx, object_id, bg, pose_quat, location, flip_box_flag)
+					# progress print
+					print("{}/{}\n".format(self.im_count, 129600))
+					self.im_count += 1
+
 
 	def generate_annotation_for_current_generated_image(self, graspID, objectID, backgroundID, pose, location, flip_box_flag):
 		info_dict = {}
@@ -577,14 +564,95 @@ class Render :
 		config.paths['backgrounds'] = os.path.join(data_folder, 'backgrounds')
 		config.paths['table_normals'] = os.path.join(data_folder, 'backgrounds/normals.json')
 
+	def set_parent_paths(self, subtype):
+		
+		def create_dir(path):
+			if not os.path.exists(path):
+				os.mkdir(path)
+		render_dir = config.paths['renders']
+		create_dir(render_dir)
+		create_dir(os.path.join(render_dir, subtype))
+
+		# Create sub-directories to store all different render outputs
+		rgb_dir = os.path.join(render_dir, subtype, 'rgb')
+		depth_dir = os.path.join(render_dir, subtype, 'depth')
+		mask_dir = os.path.join(render_dir, subtype, 'mask')
+		nocs_dir = os.path.join(render_dir, subtype, 'nocs')
+		info_dir = os.path.join(render_dir, subtype, 'info')
+		# Create these directories
+		create_dir(rgb_dir)
+		create_dir(depth_dir)
+		create_dir(mask_dir)
+		create_dir(nocs_dir)
+		create_dir(info_dir)
+	
+	def set_batch_paths(self, subtype, batch_foldername):
+		
+		def create_dir(path):
+			if not os.path.exists(path):
+				os.mkdir(path)
+		render_dir = config.paths['renders']
+
+		batch_rgb_dir = os.path.join(render_dir, subtype, 'rgb', batch_foldername)
+		batch_depth_dir = os.path.join(render_dir, subtype, 'depth', batch_foldername)
+		batch_mask_dir = os.path.join(render_dir, subtype, 'mask', batch_foldername)
+		batch_nocs_dir = os.path.join(render_dir, subtype, 'nocs', batch_foldername)
+		batch_info_dir = os.path.join(render_dir, subtype, 'info', batch_foldername)
+
+		# Create these directories
+		create_dir(batch_rgb_dir)
+		create_dir(batch_depth_dir)
+		create_dir(batch_mask_dir)
+		create_dir(batch_nocs_dir)
+		create_dir(batch_info_dir)
+
+		# Update config paths
+		config.paths['rgb_dir'] = batch_rgb_dir
+		config.paths['depth_dir'] = batch_depth_dir
+		config.paths['mask_dir'] = batch_mask_dir
+		config.paths['nocs_dir'] = batch_nocs_dir
+		config.paths['info_dir'] = batch_info_dir
+
+	# def set_paths(self, subtype, folder_name):
+		
+	# 	# Init directory to store results/renders
+	# 	render_dir = config.paths['renders']
+	# 	# Create sub-directories to store all different render outputs
+	# 	rgb_dir = os.path.join(render_dir, subtype, 'rgb', folder_name)
+	# 	depth_dir = os.path.join(render_dir, subtype, 'depth', folder_name)
+	# 	mask_dir = os.path.join(render_dir, subtype, 'mask', folder_name)
+	# 	nocs_dir = os.path.join(render_dir, subtype, 'nocs', folder_name)
+	# 	info_dir = os.path.join(render_dir, subtype, 'info', folder_name)
+
+	# 	def create_dir(path):
+	# 		if not os.path.exists(path):
+	# 			os.mkdir(path)
+
+	# 	# Create these directories
+	# 	create_dir(render_dir)
+	# 	create_dir(os.path.join(render_dir, subtype))
+	# 	create_dir(os.path.join(render_dir, subtype, folder_name))
+	# 	create_dir(rgb_dir)
+	# 	create_dir(depth_dir)
+	# 	create_dir(mask_dir)
+	# 	create_dir(nocs_dir)
+	# 	create_dir(info_dir)
+
+	# 	# Update config paths
+	# 	config.paths['rgb_dir'] = rgb_dir
+	# 	config.paths['depth_dir'] = depth_dir
+	# 	config.paths['mask_dir'] = mask_dir
+	# 	config.paths['nocs_dir'] = nocs_dir
+	# 	config.paths['info_dir'] = info_dir
 
 # Import data folder
 argv = sys.argv
 argv = argv[argv.index("--") + 1:]  # get all args after "--"
-if len(argv) < 2:
-	raise Exception("Please specify the path to the dataset folder AND the path to the output folder.")
+if len(argv) < 3:
+	raise Exception("Please specify the path to the dataset folder AND the path to the output folder AND the half")
 DATA_FOLDER = argv[0]
 RENDER_OUT_FOLDER = argv[1] # to save the renders to
+half = argv[2] # either first or second (to split the rendering over 2 computers)
 
 # Import classes
 R = Render(DATA_FOLDER, RENDER_OUT_FOLDER) 
@@ -601,7 +669,13 @@ utils_blender.clear_mesh()
 utils_blender.clear_lights()
 CL.camera_init()
 
-# Render loops
-R.loop_for_without_grasp(N, O, CL, start_idx=1, subtype="no_hand", subset="train")
-R.loop_for_with_grasp(N, O, CL, start_idx=1, subtype="hand", subset="train")
+start = time.time()
+
+R.loop_for_with_grasp(N, O, CL, half=half, subtype="hand")
+if half == 'first':
+	R.loop_for_without_grasp(N, O, CL, start_idx=1, subtype="no_hand")
+
+end = time.time()
+print("elapsed time:", end - start)
+
 print("Ran succesfully.")
