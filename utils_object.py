@@ -273,37 +273,33 @@ class ObjectUtils():
 			else:
 				pass
 
-		# Get location
-		x,y,z = self.get_location_on_table(config, cur_mask_bg, cur_depth_bg)
-		self.coord = x, z, -y
+		location_xyz, pose_quaternion_wxyz = get_random_pose(False, config, cur_mask_bg, cur_depth_bg)
 
-		# Set some random variables
-		z_rot = math.radians(np.random.randint(config.random_params["z_rotation"])) # for stem & non-stem
+		# # Get location
+		# x,y,z = self.get_location_on_table(config, cur_mask_bg, cur_depth_bg)
+		# self.coord = x, z, -y
 
-		# Load x and y rotation, based on the table normal
-		xAngle, yAngle = utils_table.load_rotation_based_on_normal(normal_json, cur_bg)
+		# # Set some random variables
+		# z_rot = math.radians(np.random.randint(config.random_params["z_rotation"])) # for stem & non-stem
+
+		# # Load x and y rotation, based on the table normal
+		# xAngle, yAngle = utils_table.load_rotation_based_on_normal(normal_json, cur_bg)
 		
-		# Loop over meshes
+		# Loop over meshes, set the 6D pose
 		scene = bpy.context.scene
 		for obj in scene.objects:
 			obj.select_set(False)
 			# if a mesh
 			if obj.type == 'MESH':
-
 				# Place object at location
-				obj.location[0] = x / 1000 
-				obj.location[1] = z / 1000 
-				obj.location[2] = -y / 1000 
+				obj.location[0] = location_xyz[0] / 1000 
+				obj.location[1] = location_xyz[1] / 1000 
+				obj.location[2] = location_xyz[2] / 1000 
 
-				# First rotation to rotation matrix
-				r1 = R.from_euler("YXZ", [yAngle, xAngle - math.radians(90), z_rot], degrees=False)
-				rot_matrix1 = r1.as_matrix()
-				quat1 = r1.as_quat()
-				obj.rotation_mode = 'QUATERNION'
-				obj.rotation_quaternion[0] = quat1[3]
-				obj.rotation_quaternion[1] = quat1[0]
-				obj.rotation_quaternion[2] = quat1[1]
-				obj.rotation_quaternion[3] = quat1[2]
+				obj.rotation_quaternion[0] = pose_quaternion_wxyz[0]
+				obj.rotation_quaternion[1] = pose_quaternion_wxyz[1]
+				obj.rotation_quaternion[2] = pose_quaternion_wxyz[2]
+				obj.rotation_quaternion[3] = pose_quaternion_wxyz[3]
 					
 				self.locationx = obj.location[0]
 				self.locationy = obj.location[1]
@@ -313,6 +309,37 @@ class ObjectUtils():
 				self.rotationx = obj.rotation_quaternion[1]
 				self.rotationy = obj.rotation_quaternion[2]
 				self.rotationz = obj.rotation_quaternion[3]
+
+		# # Loop over meshes
+		# scene = bpy.context.scene
+		# for obj in scene.objects:
+		# 	obj.select_set(False)
+		# 	# if a mesh
+		# 	if obj.type == 'MESH':
+
+		# 		# Place object at location
+		# 		obj.location[0] = x / 1000 
+		# 		obj.location[1] = z / 1000 
+		# 		obj.location[2] = -y / 1000 
+
+		# 		# First rotation to rotation matrix
+		# 		r1 = R.from_euler("YXZ", [yAngle, xAngle - math.radians(90), z_rot], degrees=False)
+		# 		rot_matrix1 = r1.as_matrix()
+		# 		quat1 = r1.as_quat()
+		# 		obj.rotation_mode = 'QUATERNION'
+		# 		obj.rotation_quaternion[0] = quat1[3]
+		# 		obj.rotation_quaternion[1] = quat1[0]
+		# 		obj.rotation_quaternion[2] = quat1[1]
+		# 		obj.rotation_quaternion[3] = quat1[2]
+					
+		# 		self.locationx = obj.location[0]
+		# 		self.locationy = obj.location[1]
+		# 		self.locationz = obj.location[2]
+				
+		# 		self.rotationw = obj.rotation_quaternion[0]
+		# 		self.rotationx = obj.rotation_quaternion[1]
+		# 		self.rotationy = obj.rotation_quaternion[2]
+		# 		self.rotationz = obj.rotation_quaternion[3]
 		
 		# Select object again
 		scene = bpy.context.scene
@@ -324,7 +351,7 @@ class ObjectUtils():
 
 		return [self.locationx, self.locationy, self.locationz], [self.rotationw, self.rotationx, self.rotationy, self.rotationz]
 
-	def get_random_pose(hand=False, cur_mask_bg, cur_depth_bg):
+	def get_random_pose(hand_bool, config, cur_mask_bg, cur_depth_bg):
 		"""
 		Computes the randomized 6D pose.
 		"""
@@ -333,7 +360,7 @@ class ObjectUtils():
 
 		### First, set location
 		x,y,z = self.get_location_on_table(config, cur_mask_bg, cur_depth_bg)
-		if hand:
+		if hand_bool:
 			# Get random height in mm
 			rand_height = float(np.random.randint(config.random_params["min_height"], config.random_params["max_height"]))
 			# init new height
@@ -345,7 +372,7 @@ class ObjectUtils():
 			location_xyz = x, z, -y
 
 		### Second, set rotation
-		# Set some random variables
+		# Generate some random variables
 		rand_hand_rot = math.radians(np.random.randint(-45,52))
 		x_rot = math.radians(random.uniform(-1 * config.random_params["x_rotation"], config.random_params["x_rotation"]))
 		y_rot = math.radians(random.uniform(-1 * config.random_params["y_rotation"], config.random_params["y_rotation"]))
@@ -354,7 +381,7 @@ class ObjectUtils():
 		# Load x and y rotation, based on the table normal
 		xAngle, yAngle = utils_table.load_rotation_based_on_normal(normal_json, cur_bg)
 
-		if hand:
+		if hand_bool:
 			# First rotation to rotation matrix
 			r1 = R.from_euler("YXZ", [yAngle, xAngle - math.radians(90), rand_hand_rot], degrees=False)
 			rot_matrix1 = r1.as_matrix()
@@ -368,22 +395,21 @@ class ObjectUtils():
 			r12 = R.from_matrix(rot_matrix12)
 			# X,Y,Z,W
 			quat12 = r12.as_quat()
-			obj.rotation_mode = 'QUATERNION'
-			obj.rotation_quaternion[0] = quat12[3]
-			obj.rotation_quaternion[1] = quat12[0]
-			obj.rotation_quaternion[2] = quat12[1]
-			obj.rotation_quaternion[3] = quat12[2]
+			pose_quaternion_wxyz = [quat12[3], quat12[0], quat12[1], quat12[2]]
+			# obj.rotation_mode = 'QUATERNION'
+			# obj.rotation_quaternion[0] = quat12[3]
+			# obj.rotation_quaternion[1] = quat12[0]
+			# obj.rotation_quaternion[2] = quat12[1]
+			# obj.rotation_quaternion[3] = quat12[2]
 		
 		else: # On the table
 			# First rotation to rotation matrix
 			r1 = R.from_euler("YXZ", [yAngle, xAngle - math.radians(90), rand_hand_rot], degrees=False)
 			rot_matrix1 = r1.as_matrix()
 			quat1 = r1.as_quat()
-			obj.rotation_mode = 'QUATERNION'
-			obj.rotation_quaternion[0] = quat1[3]
-			obj.rotation_quaternion[1] = quat1[0]
-			obj.rotation_quaternion[2] = quat1[1]
-			obj.rotation_quaternion[3] = quat1[2]
+			pose_quaternion_wxyz = [quat1[3], quat1[0], quat1[1], quat1[2]]
+
+		return location_xyz, pose_quaternion_wxyz
 
 	def place_object_and_hand(self, obj_model, grasp_model, obj_cat_idx, cur_obj_class, 
 							  cur_depth_bg, cur_mask_bg, cur_bg,
@@ -473,77 +499,106 @@ class ObjectUtils():
 				pass
 		###
 
-		# Get location
-		x,y,z = self.get_location_on_table(config, cur_mask_bg, cur_depth_bg)
-		# Set location
-		if add_height:
-			# Get random height in mm
-			rand_height = float(np.random.randint(config.random_params["min_height"], config.random_params["max_height"]))
-			# init new height
-			heightened_y = -y + rand_height
-			# set final 3d coordinate
-			self.coord = x, z, heightened_y
-		# Just render object+hand on the table
-		else:
-			self.coord = x, z, -y
-
-
-		# Set some random variables
-		rand_hand_rot = math.radians(np.random.randint(-45,52))
-		x_rot = math.radians(random.uniform(-1 * config.random_params["x_rotation"], config.random_params["x_rotation"]))
-		y_rot = math.radians(random.uniform(-1 * config.random_params["y_rotation"], config.random_params["y_rotation"]))
-		z_rot = math.radians(np.random.randint(config.random_params["z_rotation"])) # for stem & non-stem
-
-		# Load x and y rotation, based on the table normal
-		xAngle, yAngle = utils_table.load_rotation_based_on_normal(normal_json, cur_bg)
+		location_xyz, pose_quaternion_wxyz = get_random_pose(False, config, cur_mask_bg, cur_depth_bg)
 		
-		# Loop over meshes
+		# Loop over meshes, set the 6D pose
 		scene = bpy.context.scene
 		for obj in scene.objects:
 			obj.select_set(False)
 			# if a mesh
 			if obj.type == 'MESH':
-
 				# Place object at location
-				obj.location[0] = x / 1000 
-				obj.location[1] = z / 1000 
-				if add_height:
-					obj.location[2] = heightened_y / 1000
-				else:
-					obj.location[2] = -y / 1000 
+				obj.location[0] = location_xyz[0] / 1000 
+				obj.location[1] = location_xyz[1] / 1000 
+				obj.location[2] = location_xyz[2] / 1000 
 
-				# TODO: freely rotate about yaw axis, for stem and non-stem
-
-				if add_height:
-					# First rotation to rotation matrix
-					r1 = R.from_euler("YXZ", [yAngle, xAngle - math.radians(90), rand_hand_rot], degrees=False)
-					rot_matrix1 = r1.as_matrix()
-					quat1 = r1.as_quat()
-					# Second rotation to rotation matrix
-					r2 = R.from_euler("YXZ", [y_rot, x_rot, 0], degrees=False)
-					rot_matrix2 = r2.as_matrix()
-					# Both
-					rot_matrix12 = rot_matrix1 @ rot_matrix2
-					# Convert to quaternion
-					r12 = R.from_matrix(rot_matrix12)
-					# X,Y,Z,W
-					quat12 = r12.as_quat()
-					obj.rotation_mode = 'QUATERNION'
-					obj.rotation_quaternion[0] = quat12[3]
-					obj.rotation_quaternion[1] = quat12[0]
-					obj.rotation_quaternion[2] = quat12[1]
-					obj.rotation_quaternion[3] = quat12[2]
+				obj.rotation_quaternion[0] = pose_quaternion_wxyz[0]
+				obj.rotation_quaternion[1] = pose_quaternion_wxyz[1]
+				obj.rotation_quaternion[2] = pose_quaternion_wxyz[2]
+				obj.rotation_quaternion[3] = pose_quaternion_wxyz[3]
+					
+				self.locationx = obj.location[0]
+				self.locationy = obj.location[1]
+				self.locationz = obj.location[2]
 				
-				else: # On the table
-					# First rotation to rotation matrix
-					r1 = R.from_euler("YXZ", [yAngle, xAngle - math.radians(90), rand_hand_rot], degrees=False)
-					rot_matrix1 = r1.as_matrix()
-					quat1 = r1.as_quat()
-					obj.rotation_mode = 'QUATERNION'
-					obj.rotation_quaternion[0] = quat1[3]
-					obj.rotation_quaternion[1] = quat1[0]
-					obj.rotation_quaternion[2] = quat1[1]
-					obj.rotation_quaternion[3] = quat1[2]
+				self.rotationw = obj.rotation_quaternion[0]
+				self.rotationx = obj.rotation_quaternion[1]
+				self.rotationy = obj.rotation_quaternion[2]
+				self.rotationz = obj.rotation_quaternion[3]
+
+				#bpy.ops.object.transform_apply(rotation=True, location=True, scale=True)
+
+		# # Get location
+		# x,y,z = self.get_location_on_table(config, cur_mask_bg, cur_depth_bg)
+		# # Set location
+		# if add_height:
+		# 	# Get random height in mm
+		# 	rand_height = float(np.random.randint(config.random_params["min_height"], config.random_params["max_height"]))
+		# 	# init new height
+		# 	heightened_y = -y + rand_height
+		# 	# set final 3d coordinate
+		# 	self.coord = x, z, heightened_y
+		# # Just render object+hand on the table
+		# else:
+		# 	self.coord = x, z, -y
+
+
+		# # Set some random variables
+		# rand_hand_rot = math.radians(np.random.randint(-45,52))
+		# x_rot = math.radians(random.uniform(-1 * config.random_params["x_rotation"], config.random_params["x_rotation"]))
+		# y_rot = math.radians(random.uniform(-1 * config.random_params["y_rotation"], config.random_params["y_rotation"]))
+		# z_rot = math.radians(np.random.randint(config.random_params["z_rotation"])) # for stem & non-stem
+
+		# # Load x and y rotation, based on the table normal
+		# xAngle, yAngle = utils_table.load_rotation_based_on_normal(normal_json, cur_bg)
+		
+		# # Loop over meshes
+		# scene = bpy.context.scene
+		# for obj in scene.objects:
+		# 	obj.select_set(False)
+		# 	# if a mesh
+		# 	if obj.type == 'MESH':
+
+		# 		# Place object at location
+		# 		obj.location[0] = x / 1000 
+		# 		obj.location[1] = z / 1000 
+		# 		if add_height:
+		# 			obj.location[2] = heightened_y / 1000
+		# 		else:
+		# 			obj.location[2] = -y / 1000 
+
+		# 		# TODO: freely rotate about yaw axis, for stem and non-stem
+
+		# 		if add_height:
+		# 			# First rotation to rotation matrix
+		# 			r1 = R.from_euler("YXZ", [yAngle, xAngle - math.radians(90), rand_hand_rot], degrees=False)
+		# 			rot_matrix1 = r1.as_matrix()
+		# 			quat1 = r1.as_quat()
+		# 			# Second rotation to rotation matrix
+		# 			r2 = R.from_euler("YXZ", [y_rot, x_rot, 0], degrees=False)
+		# 			rot_matrix2 = r2.as_matrix()
+		# 			# Both
+		# 			rot_matrix12 = rot_matrix1 @ rot_matrix2
+		# 			# Convert to quaternion
+		# 			r12 = R.from_matrix(rot_matrix12)
+		# 			# X,Y,Z,W
+		# 			quat12 = r12.as_quat()
+		# 			obj.rotation_mode = 'QUATERNION'
+		# 			obj.rotation_quaternion[0] = quat12[3]
+		# 			obj.rotation_quaternion[1] = quat12[0]
+		# 			obj.rotation_quaternion[2] = quat12[1]
+		# 			obj.rotation_quaternion[3] = quat12[2]
+				
+		# 		else: # On the table
+		# 			# First rotation to rotation matrix
+		# 			r1 = R.from_euler("YXZ", [yAngle, xAngle - math.radians(90), rand_hand_rot], degrees=False)
+		# 			rot_matrix1 = r1.as_matrix()
+		# 			quat1 = r1.as_quat()
+		# 			obj.rotation_mode = 'QUATERNION'
+		# 			obj.rotation_quaternion[0] = quat1[3]
+		# 			obj.rotation_quaternion[1] = quat1[0]
+		# 			obj.rotation_quaternion[2] = quat1[1]
+		# 			obj.rotation_quaternion[3] = quat1[2]
 				# else:
 				# 	use_euler = False
 				# 	# USING EULER
@@ -574,14 +629,14 @@ class ObjectUtils():
 
 
 					
-				self.locationx = obj.location[0]
-				self.locationy = obj.location[1]
-				self.locationz = obj.location[2]
+				# self.locationx = obj.location[0]
+				# self.locationy = obj.location[1]
+				# self.locationz = obj.location[2]
 				
-				self.rotationw = obj.rotation_quaternion[0]
-				self.rotationx = obj.rotation_quaternion[1]
-				self.rotationy = obj.rotation_quaternion[2]
-				self.rotationz = obj.rotation_quaternion[3]
+				# self.rotationw = obj.rotation_quaternion[0]
+				# self.rotationx = obj.rotation_quaternion[1]
+				# self.rotationy = obj.rotation_quaternion[2]
+				# self.rotationz = obj.rotation_quaternion[3]
 
 				#bpy.ops.object.transform_apply(rotation=True, location=True, scale=True)
 		
