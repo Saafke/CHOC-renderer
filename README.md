@@ -4,7 +4,7 @@
 
 #### Blender 
 
-`sudo snap blender --classic`
+`sudo snap install blender --classic`
 
 At the time of writing this repository, Blender 3.3 was used.
 
@@ -21,7 +21,7 @@ Create a conda environment:
 
 `conda activate som-env`
 
-`pip install Pillow opencv-python`
+`pip install Pillow opencv-python scipy`
 
 Since this is a snap application, we need to tell it where our python dependencies are installed. So, to figure out where your python conda packages are installed, you can run in a terminal:
 
