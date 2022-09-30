@@ -1,6 +1,5 @@
 import bpy
 
-
 def deselect(scene):
     #scene = bpy.context.scene
     for obj in scene.objects:

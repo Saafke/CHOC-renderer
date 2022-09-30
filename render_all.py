@@ -4,8 +4,7 @@ Written by Xavier Weber
 
 Example run command 
 	$ blender --background --python render_all.py -- /media/xavier/DATA/SOM_renderer_DATA or
-	$ blender --python render_all.py -- /media/xavier/DATA/SOM_renderer_DATA /media/DATA/SOM_renderer_DATA/renders
-
+	$ blender --python render_all.py -- /media/xavier/DATA/SOM_renderer_DATA /media/xavier/DATA/SOM_renderer_DATA
 """
 import sys
 sys.path.append(".")
@@ -251,6 +250,189 @@ class Render :
 		config.paths['nocs_dir'] = nocs_dir
 		config.paths['info_dir'] = info_dir
 
+	def re_render_loop(self, subtype, subset):
+		"""
+		Loops over the saved images, and re-renders them.
+		"""
+		
+		# Initialise the nodes setup
+		N.node_setting_init()
+		# Get background files
+		background_folder = os.path.join(DATA_FOLDER, 'backgrounds', 'rgb')
+		background_rgbs = os.listdir(background_folder)
+		background_rgbs.sort()
+		# objectINFO
+		f = open(os.path.join(DATA_FOLDER, 'objects', 'object_datastructure.json'))
+		object_info = json.load(f)
+		f = open(os.path.join(DATA_FOLDER, 'objects', 'object_string2id.json'))
+		object_string2id = json.load(f)
+		object_folder = os.path.join(DATA_FOLDER, 'objects', 'centered')
+		object_paths = os.listdir(object_folder)
+		# Get grasp files
+		grasp_folder = os.path.join(DATA_FOLDER, 'grasps', 'meshes')
+		grasps = os.listdir(grasp_folder)
+		grasps.sort()
+		# GraspID 2 ObjectID mapping
+		f = open(os.path.join(DATA_FOLDER, 'grasps', 'graspId_2_objectId.json'))
+		graspID_to_objectID = json.load(f)
+		# GraspINFO
+		f = open(os.path.join(DATA_FOLDER, 'grasps', 'grasp_datastructure.json'))
+		grasps_info = json.load(f)
+	
+		# Loop over the JSON files
+		json_dir = os.path.join(RENDER_OUT_FOLDER, subtype, subset, 'info')
+		json_files = os.listdir(json_dir)
+		json_files.sort()
+		for js in json_files:
+			f = open(os.path.join(json_dir, js))
+			image_info = json.load(f)
+
+			# Extract the information about this image to re-render it
+			bg = image_info['background_id']
+			grasp_id = image_info['grasp_id']
+			location_xyz = image_info['location_xyz']
+			object_id = image_info['object_id']
+			pose_quaternion_wxyz = image_info['pose_quaternion_wxyz']
+			image_id = js[:-4]
+			
+			# Reset directory im count
+			self.im_count = start_idx
+			# Reset blender im count
+			current_frame = bpy.context.scene.frame_current
+			bpy.context.scene.frame_set(start_idx)
+
+			# Clear scene of mesh and light objects
+			utils_blender.clear_mesh()
+			utils_blender.clear_lights()
+			# Set background and corresponding lights
+			self.set_background(bg)
+			CL.set_psuedo_realistic_light_per_background(bg)
+
+			# TODO: change both functions so that we can input the location and pose_quat
+			if grasp_id == None:
+				# place object on table
+				location, pose_quat = O.place_object(
+									model_path, 
+									object_cat_idx, 
+									self.cur_obj_class, 
+									self.cur_depth_bg,
+									self.cur_mask_bg,
+									self.cur_bg,
+									self.normal_json)
+			else:
+				# place object and hand
+				hand_objects, location, pose_quat = O.place_object_and_hand(model_path, 
+										grasp_path,
+										object_cat_idx, 
+										self.cur_obj_class, 
+										self.cur_depth_bg,
+										self.cur_mask_bg,
+										self.cur_bg,
+										self.normal_json,
+										add_height=True)
+
+			# Generate rgb, mask
+			self.render()
+			# Generate depth
+			self.render_depth(N)
+			# Remove .exr, save as png
+			self.correct_depth()
+			# # Generate NOCS
+			O.generate_nocs(N, self.cur_nocs_obj_path, object_texspace_size)
+			# Generate annotation file
+			self.generate_annotation_for_current_generated_image(None, object_id, bg, pose_quat, location)
+			# update counters
+			self.im_count += 1
+			counterrr += 1
+			# progress print
+			print("{}: {}/{}\n".format(subset, self.im_count, len(json_files)))
+
+	def loop_for_without_grasp(self, N, O, CL, start_idx=1, subtype="no_hand", subset="train"):
+		"""
+		The loop that renders the desired number of SOM images.
+		- Loop over each object 					48
+		 - Loop over each background				30
+		   - Sample poses  							6
+		----------------------------------------------
+		Total number of images 					 8,640 
+		"""
+		# Reset directory im count
+		self.im_count = start_idx
+		# Reset blender im count
+		current_frame = bpy.context.scene.frame_current
+		bpy.context.scene.frame_set(start_idx)
+		self.set_paths(subtype, subset)
+
+		# Initialise the nodes setup
+		N.node_setting_init()
+
+		# Get background files
+		background_folder = os.path.join(DATA_FOLDER, 'backgrounds', 'rgb')
+		background_rgbs = os.listdir(background_folder)
+		background_rgbs.sort()
+
+		# objectINFO
+		f = open(os.path.join(DATA_FOLDER, 'objects', 'object_datastructure.json'))
+		object_info = json.load(f)
+		f = open(os.path.join(DATA_FOLDER, 'objects', 'object_string2id.json'))
+		object_string2id = json.load(f)
+		object_folder = os.path.join(DATA_FOLDER, 'objects', 'centered')
+		object_paths = os.listdir(object_folder)
+		# object_folder = os.path.join(DATA_FOLDER, 'objects', 'centered', "{}.glb".format(model_string))
+		
+		# Loop over the objects (48)
+		counterrr = 0
+		for obj_path in object_paths:
+			
+			# Get corresponding info of this object by looking into the JSON
+			object_string = obj_path[:-4]
+			object_id = object_string2id[object_string]
+			object_texspace_size = object_info['objects'][int(object_id)]['texture_space_variable']
+			object_cat_idx = object_info['objects'][object_id]['category']
+			object_cat_name = object_info['categories'][object_cat_idx]['name']
+			self.cur_obj_class = object_cat_name
+
+			# Loop over the backgrounds (30)
+			for bg in background_rgbs:
+			
+				# Sample random poses above table (6)
+				for i in range(0,1):
+					
+					# Clear scene of mesh and light objects
+					utils_blender.clear_mesh()
+					utils_blender.clear_lights()
+
+					# Set background and corresponding lights
+					self.set_background(bg)
+					CL.set_psuedo_realistic_light_per_background(bg)
+
+					# Get the object path
+					model_path = os.path.join(DATA_FOLDER, 'objects', 'centered', obj_path)
+					self.cur_nocs_obj_path = os.path.join(DATA_FOLDER, 'objects', 'nocs_y-up', obj_path)
+
+					location, pose_quat = O.place_object(model_path, 
+														object_cat_idx, 
+														self.cur_obj_class, 
+														self.cur_depth_bg,
+														self.cur_mask_bg,
+														self.cur_bg,
+														self.normal_json)
+					# Generate rgb, mask
+					self.render()
+					# Generate depth
+					self.render_depth(N)
+					# Remove .exr, save as png
+					self.correct_depth()
+					# # Generate NOCS
+					O.generate_nocs(N, self.cur_nocs_obj_path, object_texspace_size)
+					# Generate annotation file
+					self.generate_annotation_for_current_generated_image(None, object_id, bg, pose_quat, location)
+					# update counters
+					self.im_count += 1
+					counterrr += 1
+					# progress print
+					print("{}: {}/{}\n".format(subset, self.im_count, 8640))
+
 	def loop_for_with_grasp(self, N, O, CL, start_idx=1, subtype="hand", subset="train"):
 		"""
 		The loop that renders the desired number of SOM images.
@@ -313,70 +495,74 @@ class Render :
 			self.cur_obj_class = object_cat_name
 			#print(object_id, object_string, object_cat_idx, object_cat_name, object_texspace_size)
 
-			# Loop over the backgrounds (30)
-			for bg in background_rgbs:
-				
-				# Sample random poses above table (5)
-				for i in range(0,1):
+			# # Loop over the backgrounds (30)
+			# for bg in background_rgbs:
+			
+
+			# 	# Sample random poses above table (5)
+			# 	for i in range(0,1):
 					
-					# Clear scene of mesh and light objects
-					utils_blender.clear_mesh()
-					utils_blender.clear_lights()
+			# Clear scene of mesh and light objects
+			utils_blender.clear_mesh()
+			utils_blender.clear_lights()
 
-					# Set background and corresponding lights
-					self.set_background(bg)
-					CL.set_psuedo_realistic_light_per_background(bg)
+			# Set background and corresponding lights
+			bg = "000016.png"
+			self.set_background(bg)
+			CL.set_psuedo_realistic_light_per_background(bg)
 
-					# Get the object path
-					model_string = graspID_to_objectID[str(graspIdx)]
-					model_path = os.path.join(DATA_FOLDER, 'objects', 'centered', "{}.glb".format(model_string))
-					self.cur_nocs_obj_path = os.path.join(DATA_FOLDER, 'objects', 'nocs_y-up', "{}.glb".format(model_string))
+			# Get the object path
+			model_string = graspID_to_objectID[str(graspIdx)]
+			model_path = os.path.join(DATA_FOLDER, 'objects', 'centered', "{}.glb".format(model_string))
+			self.cur_nocs_obj_path = os.path.join(DATA_FOLDER, 'objects', 'nocs_y-up', "{}.glb".format(model_string))
 
-					# Load object and hand (checking for collisions)
-					_, table_points = utils_table.load_real_table(self.cur_mask_bg, self.cur_depth_bg)
-					hand_objects, location, pose_quat = O.place_object_and_hand(model_path, 
-														   grasp_path, 
-														   self.cur_obj_class, 
-														   self.cur_depth_bg,
-														   self.cur_mask_bg,
-														   self.cur_bg,
-														   self.normal_json,
-														   add_height=True)
-					while(utils_table.objectsOverlap(table_points, hand_objects) == True):
-						print("Collision so re-sampling object and hand.")
-						utils_blender.clear_mesh()
-						hand_objects, location, pose_quat = O.place_object_and_hand(model_path, 
-														   grasp_path, 
-														   self.cur_obj_class, 
-														   self.cur_depth_bg,
-														   self.cur_mask_bg,
-														   self.cur_bg,
-														   self.normal_json,
-														   add_height=True)
-					# Generate rgb, mask
-					self.render()
-					# Generate depth
-					self.render_depth(N)
-					# Remove .exr, save as png
-					self.correct_depth()
-					# # Generate NOCS
-					O.generate_nocs(N, self.cur_nocs_obj_path, object_texspace_size)
-					# Generate annotation file
-					self.generate_annotation_for_current_generated_image(graspIdx, object_id, bg, pose_quat, location)
-					# update counter
-					self.im_count += 1
-					counterrr += 1
-					#xx=json5
-					# progress print
-					print("{}: {}/{}\n".format(subset, self.im_count, 129600))
+			# Load object and hand (checking for collisions)
+			_, table_points = utils_table.load_real_table(self.cur_mask_bg, self.cur_depth_bg)
+			hand_objects, location, pose_quat, flip_box_flag = O.place_object_and_hand(model_path, 
+													grasp_path,
+													object_cat_idx, 
+													self.cur_obj_class, 
+													self.cur_depth_bg,
+													self.cur_mask_bg,
+													self.cur_bg,
+													self.normal_json,
+													add_height=True)
+			while(utils_table.objectsOverlap(table_points, hand_objects) == True):
+				print("Collision so re-sampling object and hand.")
+				utils_blender.clear_mesh()
+				hand_objects, location, pose_quat, flip_box_flag = O.place_object_and_hand(model_path, 
+													grasp_path, 
+													object_cat_idx,
+													self.cur_obj_class, 
+													self.cur_depth_bg,
+													self.cur_mask_bg,
+													self.cur_bg,
+													self.normal_json,
+													add_height=True)
+			# Generate rgb, mask
+			self.render()
+			# Generate depth
+			self.render_depth(N)
+			# Remove .exr, save as png
+			self.correct_depth()
+			# # Generate NOCS
+			O.generate_nocs(N, self.cur_nocs_obj_path, object_texspace_size)
+			# Generate annotation file
+			self.generate_annotation_for_current_generated_image(graspIdx, object_id, bg, pose_quat, location, flip_box_flag)
+			# update counter
+			self.im_count += 1
+			counterrr += 1
+			# progress print
+			print("{}: {}/{}\n".format(subset, self.im_count, 129600))
 
-	def generate_annotation_for_current_generated_image(self, graspID, objectID, backgroundID, pose, location):
+	def generate_annotation_for_current_generated_image(self, graspID, objectID, backgroundID, pose, location, flip_box_flag):
 		info_dict = {}
 		info_dict['grasp_id'] = graspID
 		info_dict['object_id'] = objectID
 		info_dict['background_id'] = backgroundID
 		info_dict['pose_quaternion_wxyz'] = pose
 		info_dict['location_xyz'] = location
+		info_dict['flip_box'] = flip_box_flag
 		with open(os.path.join(config.paths['info_dir'], "{:06d}.json".format(self.im_count)), 'w') as f:
 			json.dump(info_dict, f, indent=4, sort_keys=True)
 
@@ -415,6 +601,7 @@ utils_blender.clear_mesh()
 utils_blender.clear_lights()
 CL.camera_init()
 
-# Render loop
-R.loop_for_with_grasp(N, O, CL, 1, "hand", "train")
+# Render loops
+R.loop_for_without_grasp(N, O, CL, start_idx=1, subtype="no_hand", subset="train")
+R.loop_for_with_grasp(N, O, CL, start_idx=1, subtype="hand", subset="train")
 print("Ran succesfully.")
