@@ -413,13 +413,16 @@ class Render :
 		-----------------------------------------------
 		Total number of images 					 129600 
 		"""
+		this_bash_loop_counter = 1
+
+		b_name = None
 		if half == 'first':
 			start_idx = 1
 		elif half == 'second':
-			start_idx = 86401
-			batch_foldername = "b_{:06d}_{:06d}".format(86001, (86001+999))
+			start_idx = 64800 #86401 64800
+			b_name = "b_{:06d}_{:06d}".format(64001, (64001+999))
 			self.set_parent_paths(subtype=subtype)
-			self.set_batch_paths(subtype, batch_foldername)
+			self.set_batch_paths(subtype, b_name)
 		else:
 			raise Exception("wrong half")
 		
@@ -459,8 +462,6 @@ class Render :
 		f = open(os.path.join(DATA_FOLDER, 'objects', 'object_datastructure.json'))
 		object_info = json.load(f)
 
-		b_name = None
-
 		# Loop over the grasps (and therefore also objects) (288)
 		for g in grasps:
 			
@@ -485,13 +486,19 @@ class Render :
 			
 
 				# Sample random poses above table (15)
-				for i in range(0,15):
+				for i in range(0, 15):
+					
+					# Stop running the program after 1000 images are generated
+					print("this_bash_loop_counter:", this_bash_loop_counter)
+					if this_bash_loop_counter >= 1000:
+						exit()
 					
 					if (self.im_count-1) % 1000 == 0:
 						b_name = "b_{:06d}_{:06d}".format(self.im_count, (self.im_count+999))
 
 					# Check if image is already generated
-					def check_if_image_already_exists(im_count,b):
+					def check_if_image_already_exists(im_count, b):
+						print(config.paths['renders'], subtype, 'rgb', b, "{:06d}.png".format(im_count), 'HERE DARLING')
 						path_to_check = os.path.join(config.paths['renders'], subtype, 'rgb', b, "{:06d}.png".format(im_count))
 						print("path_to_check:", path_to_check)
 						return os.path.exists(path_to_check)
@@ -559,6 +566,8 @@ class Render :
 						# progress print
 						print("{}/{}\n".format(self.im_count, 129600))
 						self.im_count += 1
+
+						this_bash_loop_counter += 1
 
 
 	def generate_annotation_for_current_generated_image(self, graspID, objectID, backgroundID, pose, location, flip_box_flag):
