@@ -459,6 +459,8 @@ class Render :
 		f = open(os.path.join(DATA_FOLDER, 'objects', 'object_datastructure.json'))
 		object_info = json.load(f)
 
+		b_name = None
+
 		# Loop over the grasps (and therefore also objects) (288)
 		for g in grasps:
 			
@@ -485,62 +487,78 @@ class Render :
 				# Sample random poses above table (15)
 				for i in range(0,15):
 					
-					# Change save folders based on current_image_count
 					if (self.im_count-1) % 1000 == 0:
-						batch_foldername = "b_{:06d}_{:06d}".format(self.im_count, (self.im_count+999))
-						self.set_batch_paths(subtype, batch_foldername)
-					N.node_setting_init()
+						b_name = "b_{:06d}_{:06d}".format(self.im_count, (self.im_count+999))
 
-					# Clear scene of mesh and light objects
-					utils_blender.clear_mesh()
-					utils_blender.clear_lights()
+					# Check if image is already generated
+					def check_if_image_already_exists(im_count,b):
+						path_to_check = os.path.join(config.paths['renders'], subtype, 'rgb', b, "{:06d}.png".format(im_count))
+						print("path_to_check:", path_to_check)
+						return os.path.exists(path_to_check)
+					
+					if check_if_image_already_exists(self.im_count, b_name):
+						print(self.im_count, "already exists! moving on...")
+						self.im_count += 1
+					else:
+						# Change save folders based on current_image_count
+						# if (self.im_count-1) % 1000 == 0:
+						# 	batch_foldername = "b_{:06d}_{:06d}".format(self.im_count, (self.im_count+999))
+						# 	self.set_batch_paths(subtype, batch_foldername)
+						#batch_foldername = "b_{:06d}_{:06d}".format(self.im_count, (self.im_count+999))
+						bpy.context.scene.frame_set(self.im_count)
+						self.set_batch_paths(subtype, b_name)
+						N.node_setting_init()
 
-					# Set background and corresponding lights
-					#bg = "000016.png"
-					self.set_background(bg)
-					CL.set_psuedo_realistic_light_per_background(bg)
-
-					# Get the object path
-					model_string = graspID_to_objectID[str(graspIdx)]
-					model_path = os.path.join(DATA_FOLDER, 'objects', 'centered', "{}.glb".format(model_string))
-					self.cur_nocs_obj_path = os.path.join(DATA_FOLDER, 'objects', 'nocs_y-up', "{}.glb".format(model_string))
-
-					# Load object and hand (checking for collisions)
-					_, table_points = utils_table.load_real_table(self.cur_mask_bg, self.cur_depth_bg)
-					hand_objects, location, pose_quat, flip_box_flag = O.place_object_and_hand(model_path, 
-															grasp_path,
-															object_cat_idx, 
-															self.cur_obj_class, 
-															self.cur_depth_bg,
-															self.cur_mask_bg,
-															self.cur_bg,
-															self.normal_json,
-															add_height=True)
-					while(utils_table.objectsOverlap(table_points, hand_objects) == True):
-						print("Collision so re-sampling object and hand.")
+						# Clear scene of mesh and light objects
 						utils_blender.clear_mesh()
+						utils_blender.clear_lights()
+
+						# Set background and corresponding lights
+						#bg = "000016.png"
+						self.set_background(bg)
+						CL.set_psuedo_realistic_light_per_background(bg)
+
+						# Get the object path
+						model_string = graspID_to_objectID[str(graspIdx)]
+						model_path = os.path.join(DATA_FOLDER, 'objects', 'centered', "{}.glb".format(model_string))
+						self.cur_nocs_obj_path = os.path.join(DATA_FOLDER, 'objects', 'nocs_y-up', "{}.glb".format(model_string))
+
+						# Load object and hand (checking for collisions)
+						_, table_points = utils_table.load_real_table(self.cur_mask_bg, self.cur_depth_bg)
 						hand_objects, location, pose_quat, flip_box_flag = O.place_object_and_hand(model_path, 
-															grasp_path, 
-															object_cat_idx,
-															self.cur_obj_class, 
-															self.cur_depth_bg,
-															self.cur_mask_bg,
-															self.cur_bg,
-															self.normal_json,
-															add_height=True)
-					# Generate rgb, mask
-					self.render()
-					# Generate depth
-					self.render_depth(N)
-					# Remove .exr, save as png
-					self.correct_depth()
-					# # Generate NOCS
-					O.generate_nocs(N, self.cur_nocs_obj_path, object_texspace_size)
-					# Generate annotation file
-					self.generate_annotation_for_current_generated_image(graspIdx, object_id, bg, pose_quat, location, flip_box_flag)
-					# progress print
-					print("{}/{}\n".format(self.im_count, 129600))
-					self.im_count += 1
+																grasp_path,
+																object_cat_idx, 
+																self.cur_obj_class, 
+																self.cur_depth_bg,
+																self.cur_mask_bg,
+																self.cur_bg,
+																self.normal_json,
+																add_height=True)
+						while(utils_table.objectsOverlap(table_points, hand_objects) == True):
+							print("Collision so re-sampling object and hand.")
+							utils_blender.clear_mesh()
+							hand_objects, location, pose_quat, flip_box_flag = O.place_object_and_hand(model_path, 
+																grasp_path, 
+																object_cat_idx,
+																self.cur_obj_class, 
+																self.cur_depth_bg,
+																self.cur_mask_bg,
+																self.cur_bg,
+																self.normal_json,
+																add_height=True)
+						# Generate rgb, mask
+						self.render()
+						# Generate depth
+						self.render_depth(N)
+						# Remove .exr, save as png
+						self.correct_depth()
+						# # Generate NOCS
+						O.generate_nocs(N, self.cur_nocs_obj_path, object_texspace_size)
+						# Generate annotation file
+						self.generate_annotation_for_current_generated_image(graspIdx, object_id, bg, pose_quat, location, flip_box_flag)
+						# progress print
+						print("{}/{}\n".format(self.im_count, 129600))
+						self.im_count += 1
 
 
 	def generate_annotation_for_current_generated_image(self, graspID, objectID, backgroundID, pose, location, flip_box_flag):
