@@ -418,6 +418,7 @@ class Render :
 		elif half == 'second':
 			start_idx = 86401
 			batch_foldername = "b_{:06d}_{:06d}".format(86001, (86001+999))
+			self.set_parent_paths(subtype=subtype)
 			self.set_batch_paths(subtype, batch_foldername)
 		else:
 			raise Exception("wrong half")
