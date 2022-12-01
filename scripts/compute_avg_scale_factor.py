@@ -7,12 +7,12 @@ import sys
 #sys.path.append("/usr/local/lib/python3.6/dist-packages/")
 sys.path.append("/home/weber/.local/lib/python3.7/site-packages")
 
+import json
 
 import bpy
 import math
 import os
 import numpy as np
-import chumpy as ch
 import pickle
 
 def clear_scene():
@@ -128,27 +128,39 @@ def clear_mesh():
 
 def compute():
     # Init stuff
-    objs_path = "/media/weber/Windows-HDD/myNOCS/objects/curate16/objects-centred/"
-    objs_categories = ["box", "non-stem", "stem"]
-    save_path = "/media/weber/Windows-HDD/myNOCS/objects/curate16/objects_nocs_y-up"
-    scales_path = "/media/weber/Windows-HDD/myNOCS/objects/curate16/objects-scales"
-    save_txt_dir = '/media/weber/Windows-HDD/myNOCS/objects/curate16/objects-texture_space'
+    objs_path = "/media/DATA/SOM_renderer_DATA/objects/centered"
+    objs_categories = ["box", "nonstem", "stem"]
 
-    scale_factor_sum = {'box': 0, 'non-stem': 0, 'stem': 0}
+    # Get information about the objects
+    f = open("/media/DATA/SOM_renderer_DATA/objects/object_datastructure.json")
+    objects_info = json.load(f)
+    f = open("/media/DATA/SOM_renderer_DATA/objects/object_string2id.json")
+    string2id = json.load(f)
+
+    # Init summations
+    scale_factor_sum = {'box': 0, 'nonstem': 0, 'stem': 0}
     
-    # Loop over categories
-    for cat in objs_categories:
-        
-        im_count = 1
+    clear_scene()
 
-        # get all .glb models
-        cat_objects = [_ for _ in os.listdir(objs_path+cat) if _.endswith(".glb")]
+    # get all .glb models
+    cat_objects = [_ for _ in os.listdir(objs_path) if _.endswith(".glb")]
 
-        # Loop over these models
-        for obj_path in cat_objects:
-            
+    counter = 0 
+
+    # Loop over these models
+    for obj_path in cat_objects:
+
+        # Get the category of this object
+        object_id = string2id[obj_path[:-4]]
+        object_category_id = objects_info["objects"][object_id]["category"]
+        object_category_name = objects_info["categories"][object_category_id]["name"]
+        print(obj_path, object_id, object_category_id, object_category_name)
+
+        if object_id in [10,32,37,45,11,2,4,21,1,46,33,23]:
+            print("Object not in train set. Skipping...")
+        else:
             # Import object into the scene
-            bpy.ops.import_scene.gltf(filepath=os.path.join(objs_path,cat,obj_path))
+            bpy.ops.import_scene.gltf(filepath=os.path.join(objs_path,obj_path))
 
             # de-select previous stuff
             bpy.ops.object.select_all(action='DESELECT')
@@ -163,21 +175,32 @@ def compute():
 
             # -- Compute scale: calculate the rectangular cuboid space diagonal
             space_dag = get_space_dag(obj)
-            scale_factor_sum[cat] += space_dag
+            print("space_dag:", space_dag)
+            scale_factor_sum[object_category_name] += space_dag
 
             # Clear scene
             clear_scene()
 
             # Remove the object
             clear_mesh()
+            counter+=1 
 
+    print("coutner:", counter)
     for cat in objs_categories:
-        scale_factor_avg = scale_factor_sum[cat] / 16
+        scale_factor_avg = scale_factor_sum[cat] / (counter/3)
         print("Average scale factor for {} is {}.".format(cat, scale_factor_avg))
 
 """
-Average scale factor for box is 0.25673284817940806.
-Average scale factor for non-stem is 0.14517481297716697.
-Average scale factor for stem is 0.15236430137727575.
+
+WHOLE SOM:
+Average scale factor for box is 256.0874845053928.
+Average scale factor for nonstem is 145.174812977167.
+Average scale factor for stem is 152.3643013772757.
+
+ONLY TRAIN:
+Average scale factor for box is 263.975385487663.
+Average scale factor for nonstem is 145.58462366809738.
+Average scale factor for stem is 156.92298518478205.
+
 """
 compute()

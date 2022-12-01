@@ -1,12 +1,45 @@
-# Render Synthetic Object Manipulation (SOM) in Blender
+# Render CORSMAL Hand-Occluded Containers (CHOC) in Blender
 
-## Installation
+This is the code to render CHOC mixed-reality composite images using Blender and Python.
 
-#### Blender 
+[[dataset](https://zenodo.org/record/5085801#.Y3zGQ9LP2V4)]
+[[webpage](https://corsmal.eecs.qmul.ac.uk/pose.html)]
+[[arxiv pre-print](https://arxiv.org/abs/2211.10470)]
 
+## Table of Contents
+
+1. [Installation](#installation)
+    1. [Requirements](#requirements)
+    2. [Instructions](#instructions)
+2. [Running demo](#demo)
+3. [Training](#training)
+4. [Known issues](#issues)
+5. [Enquiries, Question and Comments](#enquiries-question-and-comments)
+6. [Licence](#licence)
+
+## Installation <a name="installation"></a>
+
+### Requirements <a name="requirements"></a>
+
+This code has been tested on an Ubuntu 18.04 machine with Blender 3.3.
+
+1. Install Blender
+
+Download it from here: https://download.blender.org/release/Blender3.3/
+
+Then run:
+```
+tar xf blender-3.3.0-linux-x64.tar.xz
+```
+
+Open via:
+```
+cd blender-3.3.0-linux-x64.tar.xz
+./blender
+```
+
+Or if you want to install the latest version using snap:
 `sudo snap install blender --classic`
-
-At the time of writing this repository, Blender 3.3 was used.
 
 #### Dependencies 
 
@@ -17,9 +50,9 @@ At the time of writing this repository, Blender 3.3 was used.
 
 Create a conda environment:
 
-`conda create --name som-env python=3.10`
+`conda create --name choc-render-env python=3.10`
 
-`conda activate som-env`
+`conda activate choc-render-env`
 
 `pip install Pillow opencv-python scipy`
 
@@ -29,13 +62,13 @@ Since this is a snap application, we need to tell it where our python dependenci
 
 Then in the second row you will see something like:
 
-`active env location : /home/user/anaconda3/envs/som-env`
+`active env location : /home/user/anaconda3/envs/choc-render-env`
 
-So, our conda environment is at "/home/user/anaconda3/envs/som-env". We then extend this path to get the full path to the python libraries "/home/user/anaconda3/envs/som-env/lib/python3.10/site-packages"
+So, our conda environment is at "/home/user/anaconda3/envs/choc-render-env". We then extend this path to get the full path to the python libraries "/home/user/anaconda3/envs/choc-render-env/lib/python3.10/site-packages"
 
 We then give this path at the top of each script, so that it knows where to look for these dependencies:
 
-`sys.path.append('/home/user/anaconda3/envs/som-env/lib/python3.10/site-package')`
+`sys.path.append('/home/user/anaconda3/envs/choc-render-env/lib/python3.10/site-package')`
 </details>
 
 

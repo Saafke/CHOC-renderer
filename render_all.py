@@ -20,7 +20,7 @@ import json
 import time
 
 # NOTE: change this to your python directories
-sys.path.append('/mnt/storage/Xavier/anaconda3/envs/som-env/lib/python3.10/site-packages')
+sys.path.append('/home/xavier/anaconda3/envs/som-env/lib/python3.10/site-packages')
 os.environ["OPENCV_IO_ENABLE_OPENEXR"]="1"
 # Libraries that are in the python3.10 folder
 import cv2
@@ -325,6 +325,8 @@ class Render :
 		----------------------------------------------
 		Total number of images 					 8,640 
 		"""
+		b_name = None
+		this_bash_loop_counter = 1
 		# Reset directory im count
 		self.im_count = start_idx
 		# Reset blender im count
@@ -363,45 +365,82 @@ class Render :
 				# Sample random poses above table (6)
 				for i in range(0,6):
 					
-					# Change save folders based on current_image_count
-					if (self.im_count-1) % 1000 == 0:
-						batch_foldername = "b_{:06d}_{:06d}".format(self.im_count, (self.im_count+999))
-						self.set_batch_paths(subtype, batch_foldername)
+
+					# Stop running the program after 1000 images are generated
+					print("this_bash_loop_counter:", this_bash_loop_counter)
+					if this_bash_loop_counter >= 1000:
+						exit()
 					
-					N.node_setting_init()
-					# Clear scene of mesh and light objects
-					utils_blender.clear_mesh()
-					utils_blender.clear_lights()
+					# Set the batchname folder
+					if (self.im_count-1) % 1000 == 0:
+						b_name = "b_{:06d}_{:06d}".format(self.im_count, (self.im_count+999))
 
-					# Set background and corresponding lights
-					self.set_background(bg)
-					CL.set_psuedo_realistic_light_per_background(bg)
+					# Check if image is already generated
+					def check_if_images_already_exists(im_count, b):
+						
+						print(config.paths['renders'], subtype, 'rgb', b, "{:06d}.png".format(im_count), 'HERE DARLING')
 
-					# Get the object path
-					model_path = os.path.join(DATA_FOLDER, 'objects', 'centered', obj_path)
-					self.cur_nocs_obj_path = os.path.join(DATA_FOLDER, 'objects', 'nocs_y-up', obj_path)
+						# Check if all images exists already, otherwise return False
+						for xxx in ["rgb", "depth", "nocs", "mask"]:
+							path_to_check = os.path.join(config.paths['renders'], subtype, xxx, b, "{:06d}.png".format(im_count))
+							if not os.path.exists(path_to_check):
+								return False
+						# Check if info file exists already, otherwise return False
+						path_to_check = os.path.join(config.paths['renders'], subtype, 'info', b, "{:06d}.json".format(im_count))
+						if not os.path.exists(path_to_check):
+							return False
+						return True
 
-					location, pose_quat = O.place_object(model_path, 
-														object_cat_idx, 
-														self.cur_obj_class, 
-														self.cur_depth_bg,
-														self.cur_mask_bg,
-														self.cur_bg,
-														self.normal_json)
-					# Generate rgb, mask
-					self.render()
-					# Generate depth
-					self.render_depth(N)
-					# Remove .exr, save as png
-					self.correct_depth()
-					# # Generate NOCS
-					O.generate_nocs(N, self.cur_nocs_obj_path, object_texspace_size)
-					# Generate annotation file
-					self.generate_annotation_for_current_generated_image(None, object_id, bg, pose_quat, location, flip_box_flag=False)
-					# update counters
-					self.im_count += 1
-					# progress print
-					print("{}/{}\n".format(self.im_count, 8640))
+					# def check_if_image_already_exists(im_count, b):
+					# 	path_to_check = os.path.join(config.paths['renders'], subtype, 'rgb', b, "{:06d}.png".format(im_count))
+					# 	return os.path.exists(path_to_check)
+					
+					if check_if_images_already_exists(self.im_count, b_name):
+						print(self.im_count, "already exists! moving on...")
+						self.im_count += 1
+					else:
+						# # Change save folders based on current_image_count
+						# if (self.im_count-1) % 1000 == 0:
+						# 	batch_foldername = "b_{:06d}_{:06d}".format(self.im_count, (self.im_count+999))
+						# 	self.set_batch_paths(subtype, batch_foldername)
+						bpy.context.scene.frame_set(self.im_count)
+						self.set_batch_paths(subtype, b_name)
+						
+						N.node_setting_init()
+						# Clear scene of mesh and light objects
+						utils_blender.clear_mesh()
+						utils_blender.clear_lights()
+
+						# Set background and corresponding lights
+						self.set_background(bg)
+						CL.set_psuedo_realistic_light_per_background(bg)
+
+						# Get the object path
+						model_path = os.path.join(DATA_FOLDER, 'objects', 'centered', obj_path)
+						self.cur_nocs_obj_path = os.path.join(DATA_FOLDER, 'objects', 'nocs_y-up', obj_path)
+
+						location, pose_quat = O.place_object(model_path, 
+															object_cat_idx, 
+															self.cur_obj_class, 
+															self.cur_depth_bg,
+															self.cur_mask_bg,
+															self.cur_bg,
+															self.normal_json)
+						# Generate rgb, mask
+						self.render()
+						# Generate depth
+						self.render_depth(N)
+						# Remove .exr, save as png
+						self.correct_depth()
+						# # Generate NOCS
+						O.generate_nocs(N, self.cur_nocs_obj_path, object_texspace_size)
+						# Generate annotation file
+						self.generate_annotation_for_current_generated_image(None, object_id, bg, pose_quat, location, flip_box_flag=False)
+						# update counters
+						self.im_count += 1
+						this_bash_loop_counter += 1
+						# progress print
+						print("{}/{}\n".format(self.im_count, 8640))
 
 	def loop_for_with_grasp(self, N, O, CL, half='first', subtype="hand"):
 		"""
@@ -419,7 +458,7 @@ class Render :
 		if half == 'first':
 			start_idx = 1
 		elif half == 'second':
-			start_idx = 64800 #86401 64800
+			start_idx = 64801 #86401 64800
 			b_name = "b_{:06d}_{:06d}".format(64001, (64001+999))
 			self.set_parent_paths(subtype=subtype)
 			self.set_batch_paths(subtype, b_name)
@@ -496,14 +535,28 @@ class Render :
 					if (self.im_count-1) % 1000 == 0:
 						b_name = "b_{:06d}_{:06d}".format(self.im_count, (self.im_count+999))
 
-					# Check if image is already generated
-					def check_if_image_already_exists(im_count, b):
+					# Check if images is already generated
+					def check_if_images_already_exists(im_count, b):
+						
 						print(config.paths['renders'], subtype, 'rgb', b, "{:06d}.png".format(im_count), 'HERE DARLING')
-						path_to_check = os.path.join(config.paths['renders'], subtype, 'rgb', b, "{:06d}.png".format(im_count))
-						print("path_to_check:", path_to_check)
-						return os.path.exists(path_to_check)
+
+						# Check if all images exists already, otherwise return False
+						for xxx in ["rgb", "depth", "nocs", "mask"]:
+							path_to_check = os.path.join(config.paths['renders'], subtype, xxx, b, "{:06d}.png".format(im_count))
+							if not os.path.exists(path_to_check):
+								return False
+						# Check if info file exists already, otherwise return False
+						path_to_check = os.path.join(config.paths['renders'], subtype, 'info', b, "{:06d}.json".format(im_count))
+						if not os.path.exists(path_to_check):
+							return False
+						return True
+					# def check_if_image_already_exists(im_count, b):
+					# 	print(config.paths['renders'], subtype, 'rgb', b, "{:06d}.png".format(im_count), 'HERE DARLING')
+					# 	path_to_check = os.path.join(config.paths['renders'], subtype, 'rgb', b, "{:06d}.png".format(im_count))
+					# 	print("path_to_check:", path_to_check)
+					# 	return os.path.exists(path_to_check)
 					
-					if check_if_image_already_exists(self.im_count, b_name):
+					if check_if_images_already_exists(self.im_count, b_name):
 						print(self.im_count, "already exists! moving on...")
 						self.im_count += 1
 					else:
