@@ -13,8 +13,11 @@ This is the code to render CHOC mixed-reality composite images using Blender and
     2. [Instructions](#instructions)
 2. [Downloading data](#downloading-data)
 3. [Running code](#run)
-4. [Training](#training)
-5. [Known issues](#issues)
+4. [Tooling](#tooling)
+    1. [Labelling the surface in the scene](#labelling-the-surface-in-the-scene)
+    2. [Generating grasps](#creating-grasps)
+    3. [Creating NOCS textures](#creating-nocs-maps)
+5. [Notes](#notes)
 6. [Enquiries, Question and Comments](#enquiries-question-and-comments)
 7. [Licence](#licence)
 
@@ -120,7 +123,7 @@ Here we will explain how to run the code. For more information about how Blender
 
 The general command to run the code is:
 ```
-blender --python render_all.py <datafolder> <outputfolder>
+blender --python render_all.py -- <datafolder> <outputfolder>
 ```
 
 Arguments (we need to give them in order after `--`):
@@ -152,15 +155,29 @@ blender-3.3.0-linux-x64.tar.xz/blender --background --python render_all.py -- ./
 You can change the settings in the config.py file.
 
 
-## Labelling the surface in the scene
+## Labelling the surface in the scene <a name="labelling-the-surface-in-the-scene"></a>
 
-#### Annotate with 
-`labelme`
+We used [labelme](https://github.com/wkentaro/labelme) to first manually segment the table. Then, we used a [3D plane segmentation algorithm](http://www.open3d.org/docs/latest/tutorial/Basic/pointcloud.html#Plane-segmentation) via Open3D, to compute the normal of the flat surface, and remove outlier points from the table.
+
+#### Annotate using the GUI
+```
+labelme
+```
 
 #### Convert segmentation masks
-`labelme_json_to_dataset file.json -o a_folder_name`
+```
+labelme_json_to_dataset file.json -o a_folder_name
+```
 
-## Creating Grasps
+#### Plane segmentation
+
+Have a look at:
+
+```
+scripts/compute_table_normals.py
+```
+
+## Creating Grasps <a name="creating-grasps"></a>
 
 <details>
 <summary> Installing and using GraspIt!</summary>
@@ -205,10 +222,19 @@ When you loaded all objects, they might interpenetrate. You can turn OFF the Col
 1. use scripts/GraspIt_to_MANOparams.py to extract the MANO parameters from the GraspIt! world files (.xml).
 2. use scripts/MANOparams_to_Mesh.py to create from the MANO parameters the hand+forearm meshes.
 
-## Notes
+## Notes <a name="notes"></a>
 
 #### Objects used in this dataset
 - The objects in this dataset are all downloaded from [ShapeNetSem](https://shapenet.org/).
 - They are rescaled. See the dimensions of each object in our [webpage](https://corsmal.eecs.qmul.ac.uk/pose.html). 
 - They are centered such that the origin of the objects is at height 0 of the object, and in the center for the other two dimensions. You can use center.py to do this automatically.
 - For some objects, the textures don't show up in Blender. To fix this, take a look at this answer: https://blender.stackexchange.com/questions/89010/materials-not-applied-after-importing-obj-shapenet/188192#188192 
+
+
+## Enquiries, Question and Comments <a name="enquiries-question-and-comments"></a>
+
+If you have any further enquiries, question, or comments, or you would like to file a bug report or a feature request, use the Github issue tracker. 
+
+## Licence <a name="license"></a>
+
+This work is licensed under the MIT License. To view a copy of this license, see [LICENSE](LICENSE).
