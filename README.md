@@ -11,17 +11,27 @@ This is the code to render CHOC mixed-reality composite images using Blender and
 1. [Installation](#installation)
     1. [Requirements](#requirements)
     2. [Instructions](#instructions)
-2. [Running demo](#demo)
-3. [Training](#training)
-4. [Known issues](#issues)
-5. [Enquiries, Question and Comments](#enquiries-question-and-comments)
-6. [Licence](#licence)
+2. [Downloading data](#downloading-data)
+3. [Running code](#run)
+4. [Training](#training)
+5. [Known issues](#issues)
+6. [Enquiries, Question and Comments](#enquiries-question-and-comments)
+7. [Licence](#licence)
 
 ## Installation <a name="installation"></a>
 
 ### Requirements <a name="requirements"></a>
 
 This code has been tested on an Ubuntu 18.04 machine with Blender 3.3.
+
+Dependencies:
+- Python 3.10
+- Anaconda
+- Pillow
+- OpenCV
+- SciPy
+
+### Instructions
 
 1. Install Blender
 
@@ -32,68 +42,115 @@ Then run:
 tar xf blender-3.3.0-linux-x64.tar.xz
 ```
 
-Open via:
+Test it works via:
 ```
 cd blender-3.3.0-linux-x64.tar.xz
 ./blender
 ```
 
-Or if you want to install the latest version using snap:
+Alternative: if you want to, you can install the latest version using snap:
 `sudo snap install blender --classic`
 
-#### Dependencies 
 
-<details>
-<summary> Install dependencies (via conda)</summary>
+2. Install dependencies (via conda)
 
-<br>
+Create and activate a conda environment:
 
-Create a conda environment:
+```
+conda create --name choc-render-env python=3.10
+conda activate choc-render-env
+```
 
-`conda create --name choc-render-env python=3.10`
+Install dependencies:
+```
+pip install Pillow opencv-python scipy
+```
 
-`conda activate choc-render-env`
+Now, we need to tell it where our python dependencies are installed. So, to figure out where your python conda packages are installed, you can run in a terminal:
 
-`pip install Pillow opencv-python scipy`
-
-Since this is a snap application, we need to tell it where our python dependencies are installed. So, to figure out where your python conda packages are installed, you can run in a terminal:
-
-`conda info`
+```
+conda info
+```
 
 Then in the second row you will see something like:
 
-`active env location : /home/user/anaconda3/envs/choc-render-env`
+```
+active env location : /home/user/anaconda3/envs/choc-render-env
+```
 
 So, our conda environment is at "/home/user/anaconda3/envs/choc-render-env". We then extend this path to get the full path to the python libraries "/home/user/anaconda3/envs/choc-render-env/lib/python3.10/site-packages"
 
-We then give this path at the top of each script, so that it knows where to look for these dependencies:
+Then give your path at the top of the _render\_all.py_ script, so that it knows where to look for these dependencies:
 
-`sys.path.append('/home/user/anaconda3/envs/choc-render-env/lib/python3.10/site-package')`
-</details>
+`render_all.py (line 22)`
+```diff
++ sys.path.append('/home/user/anaconda3/envs/choc-render-env/lib/python3.10/site-package')
+```
 
+## Downloading data <a name="downloading-data"></a>
 
-## Downloading data
+Here we will explain how to download and unzip the necessary data to render CHOC images. The resulting file structure will look as follows:
+```
+CHOC-renderer
+  |--data
+  |   |--backgrounds
+  |   |--object_models
+  |   |--bodywithhands
+  |   |--assets
+  |   |--grasps
+  | ...
+```
 
-#### Backgrounds
+First, in _CHOC-renderer_, make a local folder called _data_:
+```
+mkdir data
+```
 
-#### Objects
+#### Backgrounds, objects and grasps
+
+You can download _backgrounds.zip_ (8.3 MB), _object\_models.zip_ (14.6 MB) and grasps (1.3 GB) \[optional\] from the [CHOC dataset](https://zenodo.org/record/5085801#.Y4iEytLP2V4) on Zenodo. Unzip the files in _data_.
 
 #### Textures (hand and arm)
-We need to download the textures for the hands and forearms. Please request access at [this](https://www.di.ens.fr/willow/research/obman/data/requestaccess.php) link. Once given access, download bodyandhands.zip. Then, unzip the contents in /DATA/GRASPS/TEXTURES/.
+We need to download the textures for the hands and forearms. Please request access [here](https://www.di.ens.fr/willow/research/obman/data/requestaccess.php) link. Once given access, download _bodyandhands.zip_ (267.2 MB). Then, unzip the contents (_bodywithhand_ and _assets_) in _data_.
 
-## Running
+
+## Running code <a name="run"></a>
+
+Here we will explain how to run the code. For more information about how Blender works through the Python API, see [here](https://docs.blender.org/api/current/info_overview.html#:~:text=Python%20in%20Blender,Blender's%20internal%20tools%20as%20well.).
+
+The general command to run the code is:
+```
+blender --python render_all.py <datafolder> <outputfolder>
+```
+
+Arguments (we need to give them in order after `--`):
+
+1. path to the data folder
+2. path to the output folder (where we will save the renders)
+
+We can make an _outputs_ folder as follows:
+```
+mkdir outputs
+```
+
+#### Example run commands:
+
+To run the code, with opening the Blender GUI:
+
+```
+blender-3.3.0-linux-x64.tar.xz/blender --python render_all.py -- ./data ./outputs
+``` 
+
+or to run the code, without opening the Blender GUI:
+
+```
+blender-3.3.0-linux-x64.tar.xz/blender --background --python render_all.py -- ./data ./outputs
+```
 
 #### Configuration
 
 You can change the settings in the config.py file.
 
-#### Example run commands:
-
-```blender --python render_all.py <DATA_FOLDER>``` 
-
-or
-
-```blender --background --python render_all.py <DATA_FOLDER>```
 
 ## Labelling the surface in the scene
 

@@ -2,8 +2,8 @@
 
 Written by Xavier Weber
 
-Example run command 
-	$ blender --background --python render_all.py -- /media/xavier/DATA/SOM_renderer_DATA or
+Example run commands:
+	$ blender --background --python render_all.py -- ./data
 	$ blender --python render_all.py -- /media/xavier/DATA/SOM_renderer_DATA /media/xavier/DATA/SOM_renderer_DATA
 """
 import sys
@@ -20,7 +20,7 @@ import json
 import time
 
 # NOTE: change this to your python directories
-sys.path.append('/home/xavier/anaconda3/envs/som-env/lib/python3.10/site-packages')
+sys.path.append('/home/xavier/anaconda3/envs/choc-render-env/lib/python3.10/site-packages')
 os.environ["OPENCV_IO_ENABLE_OPENEXR"]="1"
 # Libraries that are in the python3.10 folder
 import cv2
@@ -36,10 +36,10 @@ import utils_object
 import utils_projection
 import utils_table
 
-#To not print out blender stuff, only python prints, uncomment the following line:
+# NOTE: To not print out blender stuff, only python prints, uncomment the following line:
 #sys.stdout = sys.stderr
 # and run this command:
-# blender --background --python run_render.py 1> nul
+# $ blender --background --python run_render.py 1> nul
 
 
 
@@ -316,9 +316,9 @@ class Render :
 			# progress print
 			print("{}: {}/{}\n".format(subset, self.im_count, len(json_files)))
 
-	def loop_for_without_grasp(self, N, O, CL, start_idx=1, subtype="no_hand"):
+	def loop_for_without_grasp(self, N, O, CL, start_idx, stop_idx, subtype="no_hand"):
 		"""
-		The loop that renders the desired number of SOM images.
+		The loop that renders the desired number of CHOC mixed-reality images.
 		- Loop over each object 					48
 		 - Loop over each background				30
 		   - Sample poses  							6
@@ -326,7 +326,7 @@ class Render :
 		Total number of images 					 8,640 
 		"""
 		b_name = None
-		this_bash_loop_counter = 1
+		loop_counter = 1
 		# Reset directory im count
 		self.im_count = start_idx
 		# Reset blender im count
@@ -340,13 +340,12 @@ class Render :
 		background_rgbs.sort()
 
 		# objectINFO
-		f = open(os.path.join(DATA_FOLDER, 'objects', 'object_datastructure.json'))
+		f = open(os.path.join(DATA_FOLDER, 'object_models', 'object_datastructure.json'))
 		object_info = json.load(f)
-		f = open(os.path.join(DATA_FOLDER, 'objects', 'object_string2id.json'))
+		f = open(os.path.join(DATA_FOLDER, 'object_models', 'object_string2id.json'))
 		object_string2id = json.load(f)
-		object_folder = os.path.join(DATA_FOLDER, 'objects', 'centered')
+		object_folder = os.path.join(DATA_FOLDER, 'object_models', 'meshes')
 		object_paths = os.listdir(object_folder)
-		# object_folder = os.path.join(DATA_FOLDER, 'objects', 'centered', "{}.glb".format(model_string))
 		
 		# Loop over the objects (48)
 		for obj_path in object_paths:
@@ -367,8 +366,9 @@ class Render :
 					
 
 					# Stop running the program after 1000 images are generated
-					print("this_bash_loop_counter:", this_bash_loop_counter)
-					if this_bash_loop_counter >= 1000:
+					print("loop_counter:", loop_counter)
+					if loop_counter >= stop_idx:
+						print("Reached the stop_idx, so stop.")
 						exit()
 					
 					# Set the batchname folder
@@ -378,8 +378,6 @@ class Render :
 					# Check if image is already generated
 					def check_if_images_already_exists(im_count, b):
 						
-						print(config.paths['renders'], subtype, 'rgb', b, "{:06d}.png".format(im_count), 'HERE DARLING')
-
 						# Check if all images exists already, otherwise return False
 						for xxx in ["rgb", "depth", "nocs", "mask"]:
 							path_to_check = os.path.join(config.paths['renders'], subtype, xxx, b, "{:06d}.png".format(im_count))
@@ -416,7 +414,8 @@ class Render :
 						CL.set_psuedo_realistic_light_per_background(bg)
 
 						# Get the object path
-						model_path = os.path.join(DATA_FOLDER, 'objects', 'centered', obj_path)
+						print("obj_path:", obj_path)
+						model_path = os.path.join(DATA_FOLDER, 'object_models', 'meshes', obj_path)
 						self.cur_nocs_obj_path = os.path.join(DATA_FOLDER, 'objects', 'nocs_y-up', obj_path)
 
 						location, pose_quat = O.place_object(model_path, 
@@ -438,13 +437,13 @@ class Render :
 						self.generate_annotation_for_current_generated_image(None, object_id, bg, pose_quat, location, flip_box_flag=False)
 						# update counters
 						self.im_count += 1
-						this_bash_loop_counter += 1
+						loop_counter += 1
 						# progress print
 						print("{}/{}\n".format(self.im_count, 8640))
 
-	def loop_for_with_grasp(self, N, O, CL, half='first', subtype="hand"):
+	def loop_for_with_grasp(self, N, O, CL, start_idx, stop_idx, subtype="hand"):
 		"""
-		The loop that renders the desired number of SOM images.
+		The loop that renders the desired number of CHOC mixed-reality images.
 		- Loop over each grasps 					288
 		 - Loop over each background				30
 		  - Loop over 3 areas						3
@@ -452,18 +451,22 @@ class Render :
 		-----------------------------------------------
 		Total number of images 					 129600 
 		"""
-		this_bash_loop_counter = 1
+		loop_counter = 1
 
 		b_name = None
-		if half == 'first':
-			start_idx = 1
-		elif half == 'second':
-			start_idx = 64801 #86401 64800
-			b_name = "b_{:06d}_{:06d}".format(64001, (64001+999))
-			self.set_parent_paths(subtype=subtype)
-			self.set_batch_paths(subtype, b_name)
-		else:
-			raise Exception("wrong half")
+		b_name = "b_{:06d}_{:06d}".format(start_idx, (start_idx+999))
+		self.set_parent_paths(subtype=subtype)
+		self.set_batch_paths(subtype, b_name)
+
+		# if half == 'first':
+		# 	start_idx = 1
+		# elif half == 'second':
+		# 	start_idx = 64801 #86401 64800
+		# 	b_name = "b_{:06d}_{:06d}".format(64001, (64001+999))
+		# 	self.set_parent_paths(subtype=subtype)
+		# 	self.set_batch_paths(subtype, b_name)
+		# else:
+		# 	raise Exception("wrong half")
 		
 		# Reset directory im count
 		self.im_count = start_idx
@@ -476,14 +479,14 @@ class Render :
 		grasp_folder = os.path.join(DATA_FOLDER, 'grasps', 'meshes')
 		grasps = os.listdir(grasp_folder)
 		grasps.sort()
-		if half == 'first':
-			grasps = grasps[:144]
-			print(grasps, len(grasps))
-		elif half == 'second':
-			grasps = grasps[144:]
-			print(grasps, len(grasps))
-		else:
-			raise Exception("wrong half")
+		# if half == 'first':
+		# 	grasps = grasps[:144]
+		# 	print(grasps, len(grasps))
+		# elif half == 'second':
+		# 	grasps = grasps[144:]
+		# 	print(grasps, len(grasps))
+		# else:
+		# 	raise Exception("wrong half")
 		#random.shuffle(grasps)
 
 		# Get background files
@@ -498,7 +501,7 @@ class Render :
 		f = open(os.path.join(DATA_FOLDER, 'grasps', 'grasp_datastructure.json'))
 		grasps_info = json.load(f)
 		# objectINFO
-		f = open(os.path.join(DATA_FOLDER, 'objects', 'object_datastructure.json'))
+		f = open(os.path.join(DATA_FOLDER, 'object_models', 'object_datastructure.json'))
 		object_info = json.load(f)
 
 		# Loop over the grasps (and therefore also objects) (288)
@@ -528,8 +531,9 @@ class Render :
 				for i in range(0, 15):
 					
 					# Stop running the program after 1000 images are generated
-					print("this_bash_loop_counter:", this_bash_loop_counter)
-					if this_bash_loop_counter >= 1000:
+					print("Loop counter:", loop_counter)
+					if loop_counter >= stop_idx:
+						print("Reached the stop_idx, so stop.")
 						exit()
 					
 					if (self.im_count-1) % 1000 == 0:
@@ -538,8 +542,6 @@ class Render :
 					# Check if images is already generated
 					def check_if_images_already_exists(im_count, b):
 						
-						print(config.paths['renders'], subtype, 'rgb', b, "{:06d}.png".format(im_count), 'HERE DARLING')
-
 						# Check if all images exists already, otherwise return False
 						for xxx in ["rgb", "depth", "nocs", "mask"]:
 							path_to_check = os.path.join(config.paths['renders'], subtype, xxx, b, "{:06d}.png".format(im_count))
@@ -574,14 +576,14 @@ class Render :
 						utils_blender.clear_lights()
 
 						# Set background and corresponding lights
-						#bg = "000016.png"
 						self.set_background(bg)
 						CL.set_psuedo_realistic_light_per_background(bg)
 
 						# Get the object path
 						model_string = graspID_to_objectID[str(graspIdx)]
-						model_path = os.path.join(DATA_FOLDER, 'objects', 'centered', "{}.glb".format(model_string))
-						self.cur_nocs_obj_path = os.path.join(DATA_FOLDER, 'objects', 'nocs_y-up', "{}.glb".format(model_string))
+						model_path = os.path.join(DATA_FOLDER, 'object_models', 'meshes', "{}.glb".format(model_string))
+						print("model_path", model_path)
+						self.cur_nocs_obj_path = os.path.join(DATA_FOLDER, 'object_models', 'meshes_nocs_texture', "{}.glb".format(model_string))
 
 						# Load object and hand (checking for collisions)
 						_, table_points = utils_table.load_real_table(self.cur_mask_bg, self.cur_depth_bg)
@@ -620,7 +622,7 @@ class Render :
 						print("{}/{}\n".format(self.im_count, 129600))
 						self.im_count += 1
 
-						this_bash_loop_counter += 1
+						loop_counter += 1
 
 
 	def generate_annotation_for_current_generated_image(self, graspID, objectID, backgroundID, pose, location, flip_box_flag):
@@ -636,12 +638,12 @@ class Render :
 
 	def set_data_paths(self, data_folder, render_output_folder):
 		config.paths['renders'] = render_output_folder
-		config.paths['objects'] = os.path.join(data_folder, 'objects/centered')
-		config.paths['object_nocs'] = os.path.join(data_folder, 'objects/nocs_y-up')
-		config.paths['objects_json'] = os.path.join(data_folder, 'objects/object_datastructure.json')
+		config.paths['objects'] = os.path.join(data_folder, 'object_models/meshes')
+		config.paths['object_nocs'] = os.path.join(data_folder, 'object_models/meshes_nocs_texture')
+		config.paths['objects_json'] = os.path.join(data_folder, 'object_models/object_datastructure.json')
 		
 		config.paths['grasps'] = os.path.join(data_folder, 'grasps/meshes')
-		config.paths['textures'] = os.path.join(data_folder, 'assets/bodywithands/train')
+		config.paths['textures'] = os.path.join(data_folder, 'bodywithands/train')
 		config.paths['backgrounds'] = os.path.join(data_folder, 'backgrounds')
 		config.paths['table_normals'] = os.path.join(data_folder, 'backgrounds/normals.json')
 
@@ -694,69 +696,36 @@ class Render :
 		config.paths['nocs_dir'] = batch_nocs_dir
 		config.paths['info_dir'] = batch_info_dir
 
-	# def set_paths(self, subtype, folder_name):
-		
-	# 	# Init directory to store results/renders
-	# 	render_dir = config.paths['renders']
-	# 	# Create sub-directories to store all different render outputs
-	# 	rgb_dir = os.path.join(render_dir, subtype, 'rgb', folder_name)
-	# 	depth_dir = os.path.join(render_dir, subtype, 'depth', folder_name)
-	# 	mask_dir = os.path.join(render_dir, subtype, 'mask', folder_name)
-	# 	nocs_dir = os.path.join(render_dir, subtype, 'nocs', folder_name)
-	# 	info_dir = os.path.join(render_dir, subtype, 'info', folder_name)
-
-	# 	def create_dir(path):
-	# 		if not os.path.exists(path):
-	# 			os.mkdir(path)
-
-	# 	# Create these directories
-	# 	create_dir(render_dir)
-	# 	create_dir(os.path.join(render_dir, subtype))
-	# 	create_dir(os.path.join(render_dir, subtype, folder_name))
-	# 	create_dir(rgb_dir)
-	# 	create_dir(depth_dir)
-	# 	create_dir(mask_dir)
-	# 	create_dir(nocs_dir)
-	# 	create_dir(info_dir)
-
-	# 	# Update config paths
-	# 	config.paths['rgb_dir'] = rgb_dir
-	# 	config.paths['depth_dir'] = depth_dir
-	# 	config.paths['mask_dir'] = mask_dir
-	# 	config.paths['nocs_dir'] = nocs_dir
-	# 	config.paths['info_dir'] = info_dir
-
-# Import data folder
+# Read arguments after "--"
 argv = sys.argv
-argv = argv[argv.index("--") + 1:]  # get all args after "--"
-if len(argv) < 3:
-	raise Exception("Please specify the path to the dataset folder AND the path to the output folder AND the half")
+argv = argv[argv.index("--") + 1:] 
+if len(argv) < 2:
+	raise Exception("Please specify the path to the dataset folder AND the path to the output folder")
 DATA_FOLDER = argv[0]
-RENDER_OUT_FOLDER = argv[1] # to save the renders to
-half = argv[2] # either first or second (to split the rendering over 2 computers)
+RENDER_OUT_FOLDER = argv[1]
+#half = argv[2] # either first or second (to split the rendering over 2 computers)
 
 # Import classes
 R = Render(DATA_FOLDER, RENDER_OUT_FOLDER) 
 N = node.Nodes()
-#B = utils_blender.BlenderUtils()
 CL = utils_cam_light.CamLightUtils()
-#T = utils_table.TableUtils()
 O = utils_object.ObjectUtils()
 
 
-# INITIALIZE SCENE
+# Initialise the scene
 R.scene_setting_init(config.blender_param['gpu'])
-utils_blender.clear_mesh()
-utils_blender.clear_lights()
-CL.camera_init()
+utils_blender.clear_mesh()   # remove the mesh
+utils_blender.clear_lights() # remove the light
+CL.camera_init()			 # setup our camera
 
+# start clock
 start = time.time()
 
-R.loop_for_with_grasp(N, O, CL, half=half, subtype="hand")
-if half == 'first':
-	R.loop_for_without_grasp(N, O, CL, start_idx=1, subtype="no_hand")
+# render
+R.loop_for_with_grasp(N, O, CL, start_idx=1, stop_idx=5, subtype="hand")
+R.loop_for_without_grasp(N, O, CL, start_idx=1, stop_idx=5, subtype="no_hand")
 
+# end clock 
 end = time.time()
 print("elapsed time:", end - start)
-
 print("Ran succesfully.")

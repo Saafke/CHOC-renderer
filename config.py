@@ -1,12 +1,7 @@
-""" Configuration file to store setting parameters
+""" 
+Configuration file to store setting parameters
 
-# NOTE: 
-To not print out blender stuff, only python prints, uncomment the following line:
-sys.stdout = sys.stderr
-# and run this command:
-# blender --background --python run_render.py 1> nul
-
-NOTE: Memory
+# NOTE: Memory
 Pipeline to fix objects:
   - put textures .jpg into folder where .obj and .mtl are (go into .mtl to find which textures are needed)
   - obj2gltf
@@ -23,11 +18,6 @@ Pipeline to fix objects:
 #     cy = 360
 # )
 
-# Inside/Outside campus backgrounds
-# Focal F in millimeters (mm) computation:
-# F (mm) = F (pixels) *  ( Sensorwidth (mm) / Imagewidth (pixels) )
-# Sensorwidth of Intel RealSense 435i is 3.855 (https://en.wikipedia.org/wiki/Intel_RealSense)
-# F (mm) = 605 * (3.855 / 640) = 3.6441796875
 
 random_params = dict(
     x_rotation = 45,    # degrees
@@ -38,32 +28,21 @@ random_params = dict(
 
 )
 
+# NOTE:
+# This is how to compute focal length F in millimeters (mm): F (mm) = F (pixels) *  ( Sensorwidth (mm) / Imagewidth (pixels) )
+# We know the Sensorwidth of Intel RealSense 435i is 3.855 (source: https://en.wikipedia.org/wiki/Intel_RealSense)
+# Therefore: F (mm) = 605 * (3.855 / 640) = 3.6441796875
 camera_params = dict(
-    fx = 605.408875, # pixels
-    fy = 604.509033, # pixels
-    cx = 320, #cx = 321.112396, # pixels
-    cy = 240, #251.401978, # pixels
+    fx = 605.408875,         # pixels
+    fy = 604.509033,         # pixels
+    cx = 320,                # cx = 321.112396, # pixels
+    cy = 240,                # cy = 251.401978, # pixels
     focal_mm = 3.6441796875, # millimeters
     sensor_width = 3.855,    # millimeters
     sensor_height = 2.919    # millimeters
 )
 
 paths = dict(
-
-    # update these to your folders
-    # data = '/media/xavier/DATA/SOM_renderer_DATA',
-    
-    # objects = '/media/xavier/DATA/SOM_renderer_DATA/objects/centered',
-    # objects_nocs = '/media/xavier/DATA/SOM_renderer_DATA/objects/nocs_y-up',
-    # objects_json = '/media/xavier/DATA/SOM_renderer_DATA/objects/object_datastructure.json',
-    # #scales = '/media/xavier/DATA/SOM_renderer_DATA/scales',
-    # #texture_spaces = '/media/xavier/DATA/SOM_renderer_DATA/texture_spaces',
-    # grasps = '/media/xavier/DATA/SOM_renderer_DATA/grasps/meshes',
-    # textures = "/media/xavier/DATA/SOM_renderer_DATA/assets/bodywithands/train",
-    # renders = "./renders",
-    # backgrounds = "/media/xavier/DATA/SOM_renderer_DATA/backgrounds",
-    # table_normals = "/media/xavier/DATA/SOM_renderer_DATA/backgrounds/normals.json", 
-    # #shapenet_path = '/home/weber/Documents/QMUL/Project/data/models-for-blender/obj',
 
     objects = '',
     objects_nocs = '',
@@ -117,45 +96,5 @@ data_settings = dict(
     camera_views = ["c1", "c2", "c3"],
     object_categories = ["stem", "nonstem", "box"],
 )
-
-# import bpy
-# import sys
-
-# # Import additional libraries: link to existing files or go to (whereisblender) python executable: ./python3.7m -m pip install 'package'
-# sys.path.append("/home/weber/.local/lib/python3.7/site-packages")
-# #sys.path.append("/usr/local/lib/python3.6/dist-packages/")
-# from PIL import Image
-# import cv2
-# import numpy as np
-# import pandas as pd
-
-# # RGB output
-# rgb_output_settings = bpy.types.ImageFormatSettings
-# rgb_output_settings.color_mode = "RGB"  # default is "BW"
-# rgb_output_settings.compression = 0     # default is 15
-
-# # DEPTH output
-# depth_output_settings = bpy.types.ImageFormatSettings
-# depth_output_settings.color_mode = "RGB"        # default is "BW"
-# depth_output_settings.compression = 0           # default is 15
-# depth_output_settings.color_depth = "16"        # default is 8
-# depth_output_settings.file_format = "OPEN_EXR"  # default is "PNG"
-
-# global_vars = dict(
-#     im_count = 1,
-#     cur_depth_bg = "",
-#     cur_mask_bg = "",
-#     cur_rgb_bg = "",
-#     cur_nocs_obj_path = "",
-#     cur_texspace_path = "",
-#     cur_obj_class = "",
-#     locationx = 0,
-#     locationy = 0,
-#     locationz = 0,
-#     rotationx = 0,
-#     rotationy = 0,
-#     rotationz = 0,
-#     coord = [0,0,0]
-# )
 
 

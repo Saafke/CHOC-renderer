@@ -63,7 +63,6 @@ class CamLightUtils():
 		
 		# Open the lights info JSON
 		lights_json_path = os.path.join(config.paths["backgrounds"], "lights", "{}.json".format(background[:-4]))
-		print("lights_json_path:", lights_json_path)
 		with open(lights_json_path) as f:
 			lights_annotation = json.load(f)
 
