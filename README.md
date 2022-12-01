@@ -52,7 +52,7 @@ cd blender-3.3.0-linux-x64.tar.xz
 ```
 
 Alternative: if you want to, you can install the latest version using snap:
-`sudo snap install blender --classic`
+`sudo snap install blender --classic` (Note: if you do this, this repository might not function properly anymore)
 
 
 2. Install dependencies (via conda)
@@ -228,7 +228,7 @@ When you loaded all objects, they might interpenetrate. You can turn OFF the Col
 - The objects in this dataset are all downloaded from [ShapeNetSem](https://shapenet.org/).
 - They are rescaled. See the dimensions of each object in our [webpage](https://corsmal.eecs.qmul.ac.uk/pose.html). 
 - They are centered such that the origin of the objects is at height 0 of the object, and in the center for the other two dimensions. You can use center.py to do this automatically.
-- For some objects, the textures don't show up in Blender. To fix this, take a look at this answer: https://blender.stackexchange.com/questions/89010/materials-not-applied-after-importing-obj-shapenet/188192#188192 
+- For the original object files, sometimes the textures don't show up in Blender. Therefore, we converted the files to .glb format (see: https://blender.stackexchange.com/questions/89010/materials-not-applied-after-importing-obj-shapenet/188192#188192)
 
 
 ## Enquiries, Question and Comments <a name="enquiries-question-and-comments"></a>
