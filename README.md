@@ -22,14 +22,14 @@ This is the code to render CHOC mixed-reality composite images using Blender and
 
 ### Requirements <a name="requirements"></a>
 
-This code has been tested on an Ubuntu 18.04 machine with Blender 3.3.
+This code has been tested on an Ubuntu 18.04 machine with Blender 3.3.0, with the following dependencies.
 
 Dependencies:
 - Python 3.10
-- Anaconda
-- Pillow
-- OpenCV
-- SciPy
+- Conda 4.13.0
+- Pillow 9.3.0
+- OpenCV 4.6.0
+- SciPy 1.9.3
 
 ### Instructions
 
@@ -42,7 +42,7 @@ Then run:
 tar xf blender-3.3.0-linux-x64.tar.xz
 ```
 
-Test it works via:
+To open Blender you can run the _blender_ file:
 ```
 cd blender-3.3.0-linux-x64.tar.xz
 ./blender
@@ -66,7 +66,7 @@ Install dependencies:
 pip install Pillow opencv-python scipy
 ```
 
-Now, we need to tell it where our python dependencies are installed. So, to figure out where your python conda packages are installed, you can run in a terminal:
+Because of the interaction between Blender and Python it is necessary to explicitly show Blender where our Python dependencies are installed. So, to figure out where your Python Conda packages are installed, you can run in a terminal:
 
 ```
 conda info
@@ -80,7 +80,7 @@ active env location : /home/user/anaconda3/envs/choc-render-env
 
 So, our conda environment is at "/home/user/anaconda3/envs/choc-render-env". We then extend this path to get the full path to the python libraries "/home/user/anaconda3/envs/choc-render-env/lib/python3.10/site-packages"
 
-Then give your path at the top of the _render\_all.py_ script, so that it knows where to look for these dependencies:
+Then give your path at the top of the _render\_all.py_ script, so that the script knows where to look for these dependencies:
 
 `render_all.py (line 22)`
 ```diff
@@ -208,12 +208,7 @@ When you loaded all objects, they might interpenetrate. You can turn OFF the Col
 ## Notes
 
 #### Objects used in this dataset
-- The objects in this dataset are all downloaded from ShapeNetSem.
-- They are rescaled. See the dimensions of each object in our paper. 
+- The objects in this dataset are all downloaded from [ShapeNetSem](https://shapenet.org/).
+- They are rescaled. See the dimensions of each object in our [webpage](https://corsmal.eecs.qmul.ac.uk/pose.html). 
 - They are centered such that the origin of the objects is at height 0 of the object, and in the center for the other two dimensions. You can use center.py to do this automatically.
 - For some objects, the textures don't show up in Blender. To fix this, take a look at this answer: https://blender.stackexchange.com/questions/89010/materials-not-applied-after-importing-obj-shapenet/188192#188192 
-
-#### Grasps created in this dataset
-
-- For instructions, see grasp_instructions.md in this repo.
-
