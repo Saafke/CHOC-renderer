@@ -1,6 +1,6 @@
-# CHOC render blender
+# CHOC rendering code
 
-This is the code to render CORSMAL Hand-Occluded Containers (CHOC) mixed-reality composite images using Blender and Python.
+This is the code to render CORSMAL Hand-Occluded Containers (CHOC) mixed-reality composite images using Blender and Python. It automatically generates ground-truth segmentation masks, depth maps, 6D poses, and Normalised Object Coordinate Space ([NOCS](https://geometry.stanford.edu/projects/NOCS_CVPR2019/)) maps.
 
 <p float="middle">
   <img src="/images/000692.png" width="32%"/>
@@ -177,11 +177,7 @@ labelme_json_to_dataset file.json -o a_folder_name
 
 #### Plane segmentation
 
-Have a look at:
-
-```
-scripts/compute_table_normals.py
-```
+Have a look at [compute_table_normals.py](scrips/compute_table_normals.py).
 
 ## Creating Grasps <a name="creating-grasps"></a>
 
@@ -225,15 +221,15 @@ When you loaded all objects, they might interpenetrate. You can turn OFF the Col
 
 #### Converting from GraspIt! to Blender
 
-1. use scripts/GraspIt_to_MANOparams.py to extract the MANO parameters from the GraspIt! world files (.xml).
-2. use scripts/MANOparams_to_Mesh.py to create from the MANO parameters the hand+forearm meshes.
+1. Use [GraspIt_to_MANOparams.py](scripts/GraspIt_to_MANOparams.py) to extract the MANO parameters from the GraspIt! world files (.xml).
+2. Use scripts/MANOparams_to_Mesh.py to create from the MANO parameters the hand+forearm meshes.
 
 ## Notes <a name="notes"></a>
 
 #### Objects used in this dataset
-- The objects in this dataset are all downloaded from [ShapeNetSem](https://shapenet.org/).
-- They are rescaled. See the dimensions of each object in our [webpage](https://corsmal.eecs.qmul.ac.uk/pose.html). 
-- They are centered such that the origin of the objects is at height 0 of the object, and in the center for the other two dimensions. You can use scripts/center.py to do this automatically.
+- All objects in this dataset are downloaded from [ShapeNetSem](https://shapenet.org/).
+- The objects are rescaled. See the dimensions of each object on our [webpage](https://corsmal.eecs.qmul.ac.uk/pose.html). 
+- The objects are centered such that the origin of the objects is at height 0 of the object, and in the center for the other two dimensions. This is automatised by using _scripts/center.py_.
 - For the original object files, sometimes the textures don't show up in Blender. Therefore, we converted the files to .glb format (see: https://blender.stackexchange.com/questions/89010/materials-not-applied-after-importing-obj-shapenet/188192#188192)
 
 
