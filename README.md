@@ -125,14 +125,7 @@ mkdir data
 3. Request access [here](https://www.di.ens.fr/willow/research/obman/data/requestaccess.php) to download textures for the hands and forearms:
 _bodyandhands.zip_ (267.2 MB).
 
-<<<<<<< HEAD
-You can download _backgrounds.zip_ (8.3 MB), _object\_models.zip_ (14.6 MB) and grasps (1.3 GB) \[optional\] from the [CHOC dataset](https://zenodo.org/record/5085801#.Y4iEytLP2V4) on Zenodo. Unzip the files in _data_.
-
-#### Textures (hand and arm)
-You can download textures for the hands and forearms. Please request access [here](https://www.di.ens.fr/willow/research/obman/data/requestaccess.php) link. Once given access, download _bodyandhands.zip_ (267.2 MB). Then, unzip the contents (_bodywithhand_ and _assets_) in _data_.
-=======
-4. Unzip all the zip files and their contents (_bodywithhand_ and _assets_) in _data_.
->>>>>>> c4bde54b88e94adf87c14259ebff372b331432f7
+4. Unzip all the zip files and their contents in _data_.
 
 
 ## Running code <a name="run"></a>
