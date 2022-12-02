@@ -1,6 +1,12 @@
-# Render CORSMAL Hand-Occluded Containers (CHOC) in Blender
+# CHOC render blender
 
-This is the code to render CHOC mixed-reality composite images using Blender and Python.
+This is the code to render CORSMAL Hand-Occluded Containers (CHOC) mixed-reality composite images using Blender and Python.
+
+<p float="left">
+  <img src="/images/000692.png" width="100" />
+  <img src="/images/016165.png" width="100" /> 
+  <img src="/images/016995.png" width="100" />
+</p>
 
 [[dataset](https://zenodo.org/record/5085801#.Y3zGQ9LP2V4)]
 [[webpage](https://corsmal.eecs.qmul.ac.uk/pose.html)]
@@ -227,7 +233,7 @@ When you loaded all objects, they might interpenetrate. You can turn OFF the Col
 #### Objects used in this dataset
 - The objects in this dataset are all downloaded from [ShapeNetSem](https://shapenet.org/).
 - They are rescaled. See the dimensions of each object in our [webpage](https://corsmal.eecs.qmul.ac.uk/pose.html). 
-- They are centered such that the origin of the objects is at height 0 of the object, and in the center for the other two dimensions. You can use center.py to do this automatically.
+- They are centered such that the origin of the objects is at height 0 of the object, and in the center for the other two dimensions. You can use scripts/center.py to do this automatically.
 - For the original object files, sometimes the textures don't show up in Blender. Therefore, we converted the files to .glb format (see: https://blender.stackexchange.com/questions/89010/materials-not-applied-after-importing-obj-shapenet/188192#188192)
 
 
