@@ -75,7 +75,9 @@ conda activate choc-render-env
 pip install Pillow opencv-python scipy
 ```
 
-3. Link Blender with Python dependencies by adding the path oif the conda packages at the top of the _render\_all.py_ script:
+### Linking Blender with Python dependencies
+
+Add the path of the conda packages at the top of the _render\_all.py_ script:
 `render_all.py (line 22)`
 ```diff
 + sys.path.append('/home/user/anaconda3/envs/choc-render-env/lib/python3.10/site-package')
@@ -107,17 +109,19 @@ CHOC-renderer
   | ...
 ```
 
-First, in _CHOC-renderer_, make a local folder called _data_:
+1. Make a local folder called _data_ in _CHOC-renderer_:
 ```
 mkdir data
 ```
+2. From the [CHOC dataset](https://zenodo.org/record/5085801#.Y4iEytLP2V4), download:
+* _backgrounds.zip_ (8.3 MB)
+* _object\_models.zip_ (14.6 MB)
+* grasps (1.3 GB) \[optional\] 
 
-#### Backgrounds, objects and grasps
+3. Request access [here](https://www.di.ens.fr/willow/research/obman/data/requestaccess.php) to download textures for the hands and forearms:
+_bodyandhands.zip_ (267.2 MB).
 
-You can download _backgrounds.zip_ (8.3 MB), _object\_models.zip_ (14.6 MB) and grasps (1.3 GB) \[optional\] from the [CHOC dataset](https://zenodo.org/record/5085801#.Y4iEytLP2V4) on Zenodo. Unzip the files in _data_.
-
-#### Textures (hand and arm)
-We need to download the textures for the hands and forearms. Please request access [here](https://www.di.ens.fr/willow/research/obman/data/requestaccess.php) link. Once given access, download _bodyandhands.zip_ (267.2 MB). Then, unzip the contents (_bodywithhand_ and _assets_) in _data_.
+4. Unzip all the zip files and their contents (_bodywithhand_ and _assets_) in _data_.
 
 
 ## Running code <a name="run"></a>
