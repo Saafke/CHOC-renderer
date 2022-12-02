@@ -1,11 +1,12 @@
-"""This creates the NOCS Map for the .glb models.
+"""
+This computes the average scale factor per category in the CHOC mixed-reality dataset.
 
-run command: `blender --python compute_avg_scale_factor.py` (opens blender)
+Run command: 
+$ blender --python compute_avg_scale_factor.py
 """
 
 import sys
 #sys.path.append("/usr/local/lib/python3.6/dist-packages/")
-sys.path.append("/home/weber/.local/lib/python3.7/site-packages")
 
 import json
 
@@ -128,13 +129,13 @@ def clear_mesh():
 
 def compute():
     # Init stuff
-    objs_path = "/media/DATA/SOM_renderer_DATA/objects/centered"
+    objs_path = "object_models/meshes"
     objs_categories = ["box", "nonstem", "stem"]
 
     # Get information about the objects
-    f = open("/media/DATA/SOM_renderer_DATA/objects/object_datastructure.json")
+    f = open("object_models/object_datastructure.json")
     objects_info = json.load(f)
-    f = open("/media/DATA/SOM_renderer_DATA/objects/object_string2id.json")
+    f = open("object_models/object_string2id.json")
     string2id = json.load(f)
 
     # Init summations
@@ -185,14 +186,18 @@ def compute():
             clear_mesh()
             counter+=1 
 
-    print("coutner:", counter)
+    print("counter:", counter)
     for cat in objs_categories:
         scale_factor_avg = scale_factor_sum[cat] / (counter/3)
         print("Average scale factor for {} is {}.".format(cat, scale_factor_avg))
 
-"""
+compute()
 
-WHOLE SOM:
+"""
+Results
+-------
+
+WHOLE CHOC:
 Average scale factor for box is 256.0874845053928.
 Average scale factor for nonstem is 145.174812977167.
 Average scale factor for stem is 152.3643013772757.
@@ -201,6 +206,4 @@ ONLY TRAIN:
 Average scale factor for box is 263.975385487663.
 Average scale factor for nonstem is 145.58462366809738.
 Average scale factor for stem is 156.92298518478205.
-
 """
-compute()

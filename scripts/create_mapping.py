@@ -2,7 +2,7 @@
 import json
 
 # Opening JSON file
-f = open('/media/xavier/DATA/SOM_renderer_DATA/objects/object_datastructure.json')
+f = open('object_models/object_datastructure.json')
 data = json.load(f)
 
 object_data = data['objects']
@@ -14,6 +14,6 @@ for o in object_data:
     print("ID:", ID, "STRING:", object_string)
     mapping_dict_STRING2ID[object_string] = ID
 
-new_filename = '/media/xavier/DATA/SOM_renderer_DATA/objects/object_string2id.json'
+new_filename = 'object_models/object_string2id.json'
 with open(new_filename, 'w') as f:
     json.dump(mapping_dict_STRING2ID, f, indent=4, sort_keys=True)

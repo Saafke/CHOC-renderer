@@ -27,7 +27,7 @@ def clear_scene():
 			pass
 	bpy.ops.object.select_all(action='DESELECT')
 
-folder = "/home/xavier/Documents/ObjectPose/code-from-source/SOM_renderer/DATA/OBJECTS (copy)"
+folder = "object_models/meshes"
 list_objects = []
 
 # # Get ALL object paths (all categories)

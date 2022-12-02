@@ -22,7 +22,7 @@ This is the code to render CORSMAL Hand-Occluded Containers (CHOC) mixed-reality
 4. [Tooling](#tooling)
     1. [Labelling the surface in the scene](#labelling-the-surface-in-the-scene)
     2. [Generating grasps](#creating-grasps)
-    3. [Creating NOCS textures](#creating-nocs-maps)
+    3. [Creating NOCS textures](#creating-nocs-textures)
 5. [Notes](#notes)
 6. [Enquiries, Question and Comments](#enquiries-question-and-comments)
 7. [Licence](#licence)
@@ -31,9 +31,8 @@ This is the code to render CORSMAL Hand-Occluded Containers (CHOC) mixed-reality
 
 ### Requirements <a name="requirements"></a>
 
-This code has been tested on an Ubuntu 18.04 machine with Blender 3.3.0, with the following dependencies.
+This code has been tested on an Ubuntu 18.04 machine with Blender 3.3.0, with the following dependencies:
 
-Dependencies:
 - Python 3.10
 - Conda 4.13.0
 - Pillow 9.3.0
@@ -144,13 +143,13 @@ mkdir outputs
 
 #### Example run commands:
 
-To run the code, with opening the Blender GUI:
+To run the code, with opening the Blender Graphical User Interface (GUI):
 
 ```
 blender-3.3.0-linux-x64.tar.xz/blender --python render_all.py -- ./data ./outputs
 ``` 
 
-or to run the code, without opening the Blender GUI:
+or to run the code, without opening the Blender GUI, add the `--background` argument:
 
 ```
 blender-3.3.0-linux-x64.tar.xz/blender --background --python render_all.py -- ./data ./outputs
@@ -161,7 +160,11 @@ blender-3.3.0-linux-x64.tar.xz/blender --background --python render_all.py -- ./
 You can change the settings in the config.py file.
 
 
-## Labelling the surface in the scene <a name="labelling-the-surface-in-the-scene"></a>
+## Tooling <a name="tooling"></a>
+
+Here we highlight some instructions on how to label the flat surface in the scene, manually create grasps, and create NOCS textures in Blender.
+
+### Labelling the surface in the scene <a name="labelling-the-surface-in-the-scene"></a>
 
 We used [labelme](https://github.com/wkentaro/labelme) to first manually segment the table. Then, we used a [3D plane segmentation algorithm](http://www.open3d.org/docs/latest/tutorial/Basic/pointcloud.html#Plane-segmentation) via Open3D, to compute the normal of the flat surface, and remove outlier points from the table.
 
@@ -179,7 +182,7 @@ labelme_json_to_dataset file.json -o a_folder_name
 
 Have a look at [compute_table_normals.py](scrips/compute_table_normals.py).
 
-## Creating Grasps <a name="creating-grasps"></a>
+### Creating Grasps <a name="creating-grasps"></a>
 
 <details>
 <summary> Installing and using GraspIt!</summary>
@@ -212,9 +215,9 @@ File > Import Object > Look for the .OFF files! (change XML to OFF in the drop-d
 
 File > Import Robot > ManoHand (there are three versions, not sure if there's a difference). I loaded ManoHand.xml
 
-7. Use the GUI to make the grasp. 
+7. Use the GraspIt! GUI to make the grasp. 
 
-When you loaded all objects, they might interpenetrate. You can turn OFF the Collision via: Element tab > Collision. Then before grasping, turn collision back ON.
+Note: when all objects are loaded, interpenetration is possible, preventing any movement. You can turn OFF the Collision via: Element tab > Collision. Then before grasping, turn collision back ON.
 
 8. Save the world as .xml file.
 </details>
@@ -222,14 +225,18 @@ When you loaded all objects, they might interpenetrate. You can turn OFF the Col
 #### Converting from GraspIt! to Blender
 
 1. Use [GraspIt_to_MANOparams.py](scripts/GraspIt_to_MANOparams.py) to extract the MANO parameters from the GraspIt! world files (.xml).
-2. Use scripts/MANOparams_to_Mesh.py to create from the MANO parameters the hand+forearm meshes.
+2. Use [MANOparams_to_Mesh.py](scripts/MANOparams_to_Mesh.py) to generate the hand+forearm meshes from the MANO parameters.
+
+### Creating NOCS textures <a name="creating-nocs-textures"></a>
+
+To create the NOCS textures in Blender, we used the [Texture Space](https://docs.blender.org/manual/en/latest/modeling/meshes/uv/uv_texture_spaces.html#texture-space) function. This allows you to create a bounding box around the object, and give each vertex of the object an RGB color based on its coordinate in that bounding box (exactly like the NOCS space). This vertex coloring can then be converted into the object's material/texture. For the code, see [create_nocs.py](scripts/create_nocs.py).
 
 ## Notes <a name="notes"></a>
 
 #### Objects used in this dataset
 - All objects in this dataset are downloaded from [ShapeNetSem](https://shapenet.org/).
 - The objects are rescaled. See the dimensions of each object on our [webpage](https://corsmal.eecs.qmul.ac.uk/pose.html). 
-- The objects are centered such that the origin of the objects is at height 0 of the object, and in the center for the other two dimensions. This is automatised by using _scripts/center.py_.
+- The objects are centered such that the origin of the objects is at height 0 of the object, and in the center for the other two dimensions. This is automatised by using [center.py](scripts/center.py).
 - For the original object files, sometimes the textures don't show up in Blender. Therefore, we converted the files to .glb format (see: https://blender.stackexchange.com/questions/89010/materials-not-applied-after-importing-obj-shapenet/188192#188192)
 
 
