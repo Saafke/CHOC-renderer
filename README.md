@@ -3,9 +3,9 @@
 This is the code to render CORSMAL Hand-Occluded Containers (CHOC) mixed-reality composite images using Blender and Python.
 
 <p float="left">
-  <img src="/images/000692.png" width="100" />
-  <img src="/images/016165.png" width="100" /> 
-  <img src="/images/016995.png" width="100" />
+  <img src="/images/000692.png"/>
+  <img src="/images/016165.png"/> 
+  <img src="/images/016995.png"/>
 </p>
 
 [[dataset](https://zenodo.org/record/5085801#.Y3zGQ9LP2V4)]
