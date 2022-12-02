@@ -75,13 +75,9 @@ conda activate choc-render-env
 pip install Pillow opencv-python scipy
 ```
 
-<<<<<<< HEAD
-3. Link Blender with Python dependencies by adding the path of the conda packages at the top of the _render\_all.py_ script:
-=======
 ### Linking Blender with Python dependencies
 
 Add the path of the conda packages at the top of the _render\_all.py_ script:
->>>>>>> c4bde54b88e94adf87c14259ebff372b331432f7
 `render_all.py (line 22)`
 ```diff
 + sys.path.append('/home/user/anaconda3/envs/choc-render-env/lib/python3.10/site-package')
