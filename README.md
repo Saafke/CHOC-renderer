@@ -1,6 +1,7 @@
-# CHOC rendering code
+# CHOC renderer
 
-This is the code to render CORSMAL Hand-Occluded Containers (CHOC) mixed-reality composite images using Blender and Python. It automatically generates ground-truth segmentation masks, depth maps, 6D poses, and Normalised Object Coordinate Space ([NOCS](https://geometry.stanford.edu/projects/NOCS_CVPR2019/)) maps.
+Official software to automatically render composite images of handheld containers (synthetic objects, hands and forearms) over real backgrounds 
+using Blender and Python. The software was used to generate the mixed-reality set of the CORSMAL Hand-Occluded Containers (CHOC) dataset that consists of RGB images, segmentation masks (object, hand+forearm), depth maps, 6D object poses, and Normalised Object Coordinate Space ([NOCS](https://geometry.stanford.edu/projects/NOCS_CVPR2019/)) maps.
 
 <p float="middle">
   <img src="/images/000692.png" width="32%"/>
