@@ -26,9 +26,11 @@ using Blender and Python. The software was used to generate the mixed-reality se
     3. [Creating NOCS textures](#creating-nocs-textures)
 5. [Notes](#notes)
 6. [Enquiries, Question and Comments](#enquiries-question-and-comments)
-7. [Licence](#licence)
+7. [Licence](#license)
 
 ## Installation <a name="installation"></a>
+
+The following instructions are meant for a Linux-based machine.
 
 ### Requirements <a name="requirements"></a>
 
@@ -41,61 +43,55 @@ This code has been tested on an Ubuntu 18.04 machine with the following dependen
 - OpenCV 4.6.0
 - SciPy 1.9.3
 
-### Instructions
+### Setting up Blender
 
-1. Install Blender 3.3.0
-
-Download it from here: https://download.blender.org/release/Blender3.3/
-
-Then run:
+1. Download [Blender 3.3.0](https://download.blender.org/release/Blender3.3/)
+2. Run:
 ```
 tar xf blender-3.3.0-linux-x64.tar.xz
 ```
 
-To open Blender you can run the _blender_ file:
+3. Open Blender:
 ```
 cd blender-3.3.0-linux-x64.tar.xz
 ./blender
 ```
 
-Alternative: if you want to, you can install the latest version using snap:
+Alternative (latest version using snap):
 `sudo snap install blender --classic` (Note: if you do this, this repository might not function properly anymore)
 
 
-2. Install dependencies (via conda)
+### Setting up a Conda environment
 
-Create and activate a conda environment:
+1. Create and activate a conda environment:
 
 ```
 conda create --name choc-render-env python=3.10
 conda activate choc-render-env
 ```
 
-Install dependencies:
+2. Install dependencies:
 ```
 pip install Pillow opencv-python scipy
 ```
 
-Because of the interaction between Blender and Python it is necessary to explicitly show Blender where our Python dependencies are installed. So, to figure out where your Python Conda packages are installed, you can run in a terminal:
-
-```
-conda info
-```
-
-Then in the second row you will see something like:
-
-```
-active env location : /home/user/anaconda3/envs/choc-render-env
-```
-
-So, our conda environment is at "/home/user/anaconda3/envs/choc-render-env". We then extend this path to get the full path to the python libraries "/home/user/anaconda3/envs/choc-render-env/lib/python3.10/site-packages"
-
-Then give your path at the top of the _render\_all.py_ script, so that the script knows where to look for these dependencies:
-
+3. Link Blender with Python dependencies by adding the path oif the conda packages at the top of the _render\_all.py_ script:
 `render_all.py (line 22)`
 ```diff
 + sys.path.append('/home/user/anaconda3/envs/choc-render-env/lib/python3.10/site-package')
 ```
+
+To find the path, run 
+```
+conda info
+```
+and you should see it in the second row of the terminal:
+
+```
+active env location : /home/user/anaconda3/envs/choc-render-env
+```
+The full path to the Python libraries is: "/home/user/anaconda3/envs/choc-render-env/lib/python3.10/site-packages"
+
 
 ## Downloading data <a name="downloading-data"></a>
 
