@@ -31,8 +31,9 @@ This is the code to render CORSMAL Hand-Occluded Containers (CHOC) mixed-reality
 
 ### Requirements <a name="requirements"></a>
 
-This code has been tested on an Ubuntu 18.04 machine with Blender 3.3.0, with the following dependencies:
+This code has been tested on an Ubuntu 18.04 machine with the following dependencies:
 
+- Blender 3.3.0
 - Python 3.10
 - Conda 4.13.0
 - Pillow 9.3.0
@@ -41,7 +42,7 @@ This code has been tested on an Ubuntu 18.04 machine with Blender 3.3.0, with th
 
 ### Instructions
 
-1. Install Blender
+1. Install Blender 3.3.0
 
 Download it from here: https://download.blender.org/release/Blender3.3/
 
@@ -157,7 +158,7 @@ blender-3.3.0-linux-x64.tar.xz/blender --background --python render_all.py -- ./
 
 #### Configuration
 
-You can change the settings in the config.py file.
+You can change the settings in the [config.py](config.py) file.
 
 
 ## Tooling <a name="tooling"></a>
@@ -180,7 +181,7 @@ labelme_json_to_dataset file.json -o a_folder_name
 
 #### Plane segmentation
 
-Have a look at [compute_table_normals.py](scrips/compute_table_normals.py).
+To segment the plane in 3D, and compute its surface-normal, see [compute_table_normals.py](scrips/compute_table_normals.py).
 
 ### Creating Grasps <a name="creating-grasps"></a>
 
