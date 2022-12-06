@@ -159,7 +159,7 @@ blender-3.3.0-linux-x64.tar.xz/blender --background --python render_all.py -- ./
 
 #### Configuration
 
-You can change the settings in the [config.py](config.py) file.
+You can change the settings, such as the camera and randomization parameters in the [config.py](config.py) file.
 
 
 ## Tooling <a name="tooling"></a>
