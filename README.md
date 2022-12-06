@@ -118,7 +118,7 @@ mkdir data
 * _object\_models.zip_ (14.6 MB)
 * grasps (1.3 GB) \[optional\] 
 
-3. Request access [here](https://www.di.ens.fr/willow/research/obman/data/requestaccess.php) to download textures for the hands and forearms:
+3. Request access [here](https://www.di.ens.fr/willow/research/obman/data/requestaccess.php) to download textures for the hands and forearms (grasps):
 _bodyandhands.zip_ (267.2 MB).
 
 4. Unzip all the zip files and their contents in _data_.
