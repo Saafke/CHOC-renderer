@@ -416,7 +416,7 @@ class Render :
 						# Get the object path
 						print("obj_path:", obj_path)
 						model_path = os.path.join(DATA_FOLDER, 'object_models', 'meshes', obj_path)
-						self.cur_nocs_obj_path = os.path.join(DATA_FOLDER, 'objects', 'meshes_nocs_texture', obj_path)
+						self.cur_nocs_obj_path = os.path.join(DATA_FOLDER, 'object_models', 'meshes_nocs_texture', obj_path)
 
 						location, pose_quat = O.place_object(model_path, 
 															object_cat_idx, 
