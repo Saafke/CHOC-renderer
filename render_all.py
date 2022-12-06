@@ -722,8 +722,8 @@ CL.camera_init()			 # setup our camera
 start = time.time()
 
 # render
-R.loop_for_with_grasp(N, O, CL, start_idx=1, stop_idx=5, subtype="hand")
 R.loop_for_without_grasp(N, O, CL, start_idx=1, stop_idx=5, subtype="no_hand")
+R.loop_for_with_grasp(N, O, CL, start_idx=1, stop_idx=5, subtype="hand")
 
 # end clock 
 end = time.time()

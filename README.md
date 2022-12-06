@@ -53,7 +53,7 @@ tar xf blender-3.3.0-linux-x64.tar.xz
 
 3. Open Blender:
 ```
-cd blender-3.3.0-linux-x64.tar.xz
+cd blender-3.3.0-linux-x64
 ./blender
 ```
 
@@ -148,13 +148,13 @@ mkdir outputs
 To run the code, with opening the Blender Graphical User Interface (GUI):
 
 ```
-blender-3.3.0-linux-x64.tar.xz/blender --python render_all.py -- ./data ./outputs
+blender-3.3.0-linux-x64/blender --python render_all.py -- ./data ./outputs
 ``` 
 
 or to run the code, without opening the Blender GUI, add the `--background` argument:
 
 ```
-blender-3.3.0-linux-x64.tar.xz/blender --background --python render_all.py -- ./data ./outputs
+blender-3.3.0-linux-x64/blender --background --python render_all.py -- ./data ./outputs
 ```
 
 #### Configuration
