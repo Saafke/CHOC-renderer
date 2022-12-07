@@ -1,6 +1,6 @@
 # CHOC renderer
 
-[![DOI](https://zenodo.org/badge/542541107.svg)](https://zenodo.org/badge/latestdoi/542541107) [![report](https://img.shields.io/badge/arxiv-report-red)](https://arxiv.org/abs/2211.10470)
+[![DOI](https://zenodo.org/badge/542541107.svg)](https://zenodo.org/badge/latestdoi/542541107) [![arXiv](https://img.shields.io/badge/arXiv-2211.10470-b31b1b.svg?style=flat)](https://arxiv.org/abs/2211.10470)
 
 Official software to automatically render composite images of handheld containers (synthetic objects, hands and forearms) over real backgrounds 
 using Blender and Python. The software was used to generate the mixed-reality set of the CORSMAL Hand-Occluded Containers (CHOC) dataset that consists of RGB images, segmentation masks (object, hand+forearm), depth maps, 6D object poses, and Normalised Object Coordinate Space ([NOCS](https://geometry.stanford.edu/projects/NOCS_CVPR2019/)) maps.
