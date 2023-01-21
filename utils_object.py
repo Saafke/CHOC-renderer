@@ -12,6 +12,177 @@ import mathutils
 
 class ObjectUtils():
 	
+	def get_initial_rotation(self):
+		return self.change_angle
+
+	def re_render_object(self, obj_model, cur_obj_class, location_xyz, pose_quaternion_wxyz):
+		"""Loads an object places it in the correct location,
+			with the correct rotation and scale.
+		"""
+
+		# Import object
+		bpy.ops.import_scene.gltf(filepath=obj_model)
+		print("current object class:", cur_obj_class)
+
+		### Set pass indices
+		for o in bpy.data.objects:
+			if o.name != 'Camera' and o.name != 'Light':  # if syn-object
+				o.pass_index = config.obj2id[cur_obj_class]
+			else:
+				pass
+
+		# Loop over meshes, set the 6D pose
+		self.change_angle = 0
+		scene = bpy.context.scene
+		for obj in scene.objects:
+			obj.select_set(False)
+			# if a mesh
+			if obj.type == 'MESH':
+				# Place object at location
+				obj.location[0] = location_xyz[0]
+				obj.location[1] = location_xyz[1]
+				obj.location[2] = location_xyz[2]
+
+				obj.rotation_mode = 'QUATERNION'
+				obj.rotation_quaternion[0] = pose_quaternion_wxyz[0]
+				obj.rotation_quaternion[1] = pose_quaternion_wxyz[1]
+				obj.rotation_quaternion[2] = pose_quaternion_wxyz[2]
+				obj.rotation_quaternion[3] = pose_quaternion_wxyz[3]
+
+				self.locationx = obj.location[0]
+				self.locationy = obj.location[1]
+				self.locationz = obj.location[2]
+
+				self.rotationw = obj.rotation_quaternion[0]
+				self.rotationx = obj.rotation_quaternion[1]
+				self.rotationy = obj.rotation_quaternion[2]
+				self.rotationz = obj.rotation_quaternion[3]
+
+		# Select object again
+		scene = bpy.context.scene
+		for ob in scene.objects:
+			ob.select_set(False)
+			if ob.type == 'MESH':
+				bpy.context.view_layer.objects.active = ob
+				obj = bpy.context.view_layer.objects.active
+
+		return [self.locationx, self.locationy, self.locationz], [self.rotationw, self.rotationx, self.rotationy,
+																  self.rotationz]
+
+	def re_render_object_and_hand(self, obj_model, grasp_model, obj_cat_idx, cur_obj_class, location_xyz, pose_quaternion_wxyz, flip_box): #, hand_texture):
+		"""
+		"""
+		# Import object
+		bpy.ops.import_scene.gltf(filepath=obj_model)
+		# Flip box with 50% percent change
+		if obj_cat_idx == 0:
+			print("yup this is a box")
+			if flip_box:
+				# Get object
+				for ob in bpy.data.objects:
+					if ob.type == 'MESH':
+						print("this mesh will be flipped:", ob.name)
+						ob.rotation_mode = 'XYZ'
+						ob.rotation_euler[2] = math.radians(180)
+						# Apply
+						bpy.ops.object.transform_apply(rotation=True)
+
+		# Import hand
+		bpy.ops.import_scene.gltf(filepath=grasp_model)
+		# Align the forearm with the principle axis of the camera, pointing towards the camera
+		self.align_forearm_with_pos_yaxis(draw=False)
+
+		# Load random texture path
+		all_tex_path = config.paths['textures']
+		all_texs = os.listdir(all_tex_path)
+		random_tex_path = random.choice(all_texs)
+		print("\nTEXTURE={}\n".format(random_tex_path))
+		random_tex = bpy.data.images.load(os.path.join(all_tex_path, random_tex_path))
+		#all_tex_path = config.paths['textures']
+		#print("\nTEXTURE={}\n".format(hand_texture))
+
+		print("current object class:", cur_obj_class)
+
+		### Set random hand material and pass indices
+		for o in bpy.data.objects:
+			if o.name == "f_avg":
+
+				# Set pass index to 4
+				o.pass_index = config.obj2id['hand']
+				o.select_set(True)
+
+				for m_slot in o.material_slots:
+					mat = m_slot.material
+					mat_nodes = mat.node_tree.nodes
+					mat_links = mat.node_tree.links
+					for n in mat_nodes:
+						if n.name == "Material Output":
+							mat_output_node = n
+						if n.name == "Principled BSDF":
+							princip_node = n
+
+					# Set new node - image texture
+					tex_node = mat_nodes.new('ShaderNodeTexImage')
+					# Set image
+					tex_node.image = random_tex
+					# Set new link
+					mat_links.new(tex_node.outputs['Color'], princip_node.inputs['Base Color'])
+
+				o.select_set(False)
+			elif o.name == 'f_avg.001':  # if second hand
+				o.pass_index = config.obj2id['hand']
+			elif o.name != 'Camera' and o.name != 'Light':  # if syn-object
+				o.pass_index = config.obj2id[cur_obj_class]
+			else:
+				pass
+		###
+
+		# Loop over meshes, set the 6D pose
+		scene = bpy.context.scene
+		for obj in scene.objects:
+			obj.select_set(False)
+			# if a mesh
+			if obj.type == 'MESH':
+				# Place object at location
+				obj.location[0] = location_xyz[0]
+				obj.location[1] = location_xyz[1]
+				obj.location[2] = location_xyz[2]
+
+				obj.rotation_mode = 'QUATERNION'
+				obj.rotation_quaternion[0] = pose_quaternion_wxyz[0]
+				obj.rotation_quaternion[1] = pose_quaternion_wxyz[1]
+				obj.rotation_quaternion[2] = pose_quaternion_wxyz[2]
+				obj.rotation_quaternion[3] = pose_quaternion_wxyz[3]
+
+				self.locationx = obj.location[0]
+				self.locationy = obj.location[1]
+				self.locationz = obj.location[2]
+
+				self.rotationw = obj.rotation_quaternion[0]
+				self.rotationx = obj.rotation_quaternion[1]
+				self.rotationy = obj.rotation_quaternion[2]
+				self.rotationz = obj.rotation_quaternion[3]
+
+		hand_objects = []
+		# Select object again
+		scene = bpy.context.scene
+		for ob in scene.objects:
+			ob.select_set(False)
+			if ob.type == 'MESH':
+				if ob.name != "f_avg" or ob.name != "f_avg.001":
+					bpy.context.view_layer.objects.active = ob
+					obj = bpy.context.view_layer.objects.active
+				if ob.name == "f_avg" or ob.name == "f_avg.001":
+					print("ADDING:", ob.name)
+					hand_objects.append(ob)
+					ob.select_set(True)
+					bpy.ops.object.transform_apply(rotation=True, location=True, scale=True)
+					ob.select_set(False)
+
+		return hand_objects, [self.locationx, self.locationy, self.locationz], [self.rotationw, self.rotationx,
+																				self.rotationy,
+																				self.rotationz], flip_box #, hand_texture
+
 	def get_location_on_table(self, config, cur_mask_bg, cur_depth_bg):
 		
 		# Open mask 
@@ -709,10 +880,17 @@ class ObjectUtils():
 			if ob.type == 'MESH':
 				ob.rotation_mode = 'XYZ'
 				ob.rotation_euler[2] = -1*angle
+				self.change_angle = -1 * angle  # In radians
 				# Apply the changes
 				ob.select_set(True)
 				bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
 				ob.select_set(False)
+
+	def rotation_z_matrix(self, theta):
+		rotation_matrix = [[np.cos(theta), -np.sin(theta),  0],
+						   [np.sin(theta),  np.cos(theta),  0],
+						   [0,                          0,  1]]
+		return rotation_matrix
 
 	def generate_nocs(self, N, cur_nocs_obj_path, texspace_size):
 		"""Loads object with NOCS-map material and places it in the same location and rotation.
@@ -766,6 +944,50 @@ class ObjectUtils():
 		tex_node = mat_nodes.new('ShaderNodeTexCoord')
 		# set new link - bypassing principle node
 		mat_links.new(tex_node.outputs["Generated"], mat_output_node.inputs[0])        
+
+
+		# TODO: combine change_angle with the location and quaternion
+
+		# convert change_angle to rotation matrix
+		rotation_sym_axis = self.rotation_z_matrix(self.change_angle); print(rotation_sym_axis)
+		r_sym = R.from_matrix(rotation_sym_axis)
+		r_sym = r_sym.as_matrix()
+		print("rotation (sym) matrix", r_sym)
+
+		# convert wxyz to rotation matrix
+		quat_before = [self.rotationx, self.rotationy, self.rotationz, self.rotationw]; print("\nquat before:", quat_before)
+		r_quat = R.from_quat([self.rotationx, self.rotationy, self.rotationz, self.rotationw]) # xyzw
+		r_quat = r_quat.as_matrix()
+		print("rotation (quat) matrix", r_quat)
+
+		# combine both rotation matrices into one (note the order)
+		r_combined = r_quat @ r_sym
+		print("r_combined matrix", r_combined)
+
+		# revert back to quaternion
+		quat_combined = R.from_matrix(r_combined) #xyzw
+		quat_combined = quat_combined.as_quat()
+		print("quaternion combined (xyzw):", quat_combined, "\n\n")
+
+		self.rotationw = quat_combined[3]
+		self.rotationx = quat_combined[0]
+		self.rotationy = quat_combined[1]
+		self.rotationz = quat_combined[2]
+
+		# ###################################### TA
+		# # Apply the changes
+		# for ob in bpy.data.objects:
+		# 	if ob.type == 'MESH':
+		# 		# Select object
+		# 		ob.rotation_mode = 'XYZ'
+		# 		ob.rotation_euler[2] = self.change_angle
+		# 		# print("Change angle: ", self.change_angle)
+		# 		#ob.select_set(True)
+		# 		bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+		# 		#ob.select_set(False)
+		# # if obj_class == "box":
+		# # copy()
+		# ########################################
 
 		# set location
 		obj.location[0] = self.locationx
@@ -822,4 +1044,8 @@ class ObjectUtils():
 
 		for block in bpy.data.images:
 			bpy.data.images.remove(block)
+		
+		l = [self.locationx, self.locationy, self.locationz]
+		p_q = [self.rotationw, self.rotationx, self.rotationy, self.rotationz]
+		return l, p_q
 

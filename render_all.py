@@ -4,7 +4,7 @@ Written by Xavier Weber
 
 Example run commands:
 	$ blender --background --python render_all.py -- ./data
-	$ blender --python render_all.py -- /media/xavier/DATA/SOM_renderer_DATA /media/xavier/DATA/SOM_renderer_DATA
+	$ blender --python render_all.py -- /media/xavier/DATA/SOM_renderer_DATA /media/weber/Seagate Portable Drive/CHOC
 """
 import sys
 sys.path.append(".")
@@ -20,7 +20,8 @@ import json
 import time
 
 # NOTE: change this to your python directories
-sys.path.append('/home/xavier/anaconda3/envs/choc-render-env/lib/python3.10/site-packages')
+#sys.path.append('/home/xavier/anaconda3/envs/choc-render-env/lib/python3.10/site-packages')
+sys.path.append('/mnt/c7dd8318-a1d3-4622-a5fb-3fc2d8819579/CORSMAL/envs/choc-render-env/lib/python3.10/site-packages')
 os.environ["OPENCV_IO_ENABLE_OPENEXR"]="1"
 # Libraries that are in the python3.10 folder
 import cv2
@@ -118,7 +119,6 @@ class Render :
 			# To speed up the rendering, while keeping the realism
 			bpy.data.scenes[sce].cycles.max_bounces = 6
 			bpy.data.scenes[sce].cycles.tile_size = 65536 #(256*256)
-
 		
 		else:
 			bpy.data.scenes[sce].render.engine = 'BLENDER_EEVEE'
@@ -219,7 +219,158 @@ class Render :
 		bpy.data.scenes[sce].render.film_transparent = False
 		bpy.ops.render.render(write_still=True)
 
-	def re_render_loop(self, subtype, subset):
+	def set_re_render_nocs_parent_paths(self):
+
+		def create_dir(path):
+			if not os.path.exists(path):
+				os.mkdir(path)
+
+		render_dir = config.paths['renders']
+		create_dir(render_dir)
+		create_dir(os.path.join(render_dir))
+
+		# Create sub-directories to store all different render outputs
+		#rgb_dir = os.path.join(render_dir, 'rgb')
+		#depth_dir = os.path.join(render_dir, 'depth')
+		#mask_dir = os.path.join(render_dir, 'mask')
+		nocs_dir = os.path.join(render_dir, 'nocs')
+		info_dir = os.path.join(render_dir, 'annotations')
+		#aff_dir = os.path.join(render_dir, 'affordance')
+
+		# Create these directories
+		#create_dir(rgb_dir)
+		#create_dir(depth_dir)
+		#create_dir(mask_dir)
+		create_dir(nocs_dir)
+		create_dir(info_dir)
+		#create_dir(aff_dir)
+
+	def set_re_render_nocs_paths(self, batch_foldername):
+
+		def create_dir(path):
+			if not os.path.exists(path):
+				os.mkdir(path)
+
+		render_dir = config.paths['renders']
+
+		#batch_rgb_dir = os.path.join(render_dir, 'rgb', batch_foldername)
+		#batch_depth_dir = os.path.join(render_dir, 'depth', batch_foldername)
+		#batch_mask_dir = os.path.join(render_dir, 'mask', batch_foldername)
+		batch_nocs_dir = os.path.join(render_dir, 'nocs', batch_foldername)
+		batch_info_dir = os.path.join(render_dir, 'annotations', batch_foldername)
+		#batch_affordance_dir = os.path.join(render_dir, 'affordance', batch_foldername)
+
+		# Create these directories
+		#create_dir(batch_rgb_dir)
+		#create_dir(batch_depth_dir)
+		#create_dir(batch_mask_dir)
+		create_dir(batch_nocs_dir)
+		create_dir(batch_info_dir)
+		#create_dir(batch_affordance_dir)
+
+		# Update config paths
+		#config.paths['rgb_dir'] = batch_rgb_dir
+		#config.paths['depth_dir'] = batch_depth_dir
+		#config.paths['mask_dir'] = batch_mask_dir
+		config.paths['nocs_dir'] = batch_nocs_dir
+		config.paths['info_dir'] = batch_info_dir
+	   # config.paths['aff_dir'] = batch_affordance_dir
+
+	def re_render_nocs_loop(self):
+		"""
+		Loops over the saved images, and re-renders the NOCS maps, while fixing the NOCS map rotation bug(s).
+
+		TODO: double check coloring of the NOCS values is kept.
+		"""
+
+		self.set_re_render_nocs_parent_paths()
+
+		# Open relevant information
+		f = open(os.path.join(DATA_FOLDER, 'object_models', 'object_datastructure.json'))
+		object_info = json.load(f)
+		f = open(os.path.join(DATA_FOLDER, 'grasps', 'grasp_datastructure.json'))
+		grasps_info = json.load(f)
+
+		# Loop over the JSON files
+		json_root_dir = os.path.join(DATA_FOLDER, 'annotations')
+		json_folders = os.listdir(json_root_dir)
+		json_folders.sort()
+		for ind, js_folder in enumerate(json_folders):
+			json_dir = os.path.join(DATA_FOLDER, json_root_dir, js_folder)
+			json_files = os.listdir(json_dir)
+			json_files.sort()
+			self.set_re_render_nocs_paths(js_folder)
+			for js in json_files:
+				f = open(os.path.join(json_dir, js))
+				image_info = json.load(f)
+
+				# Extract the information about this image to re-render it
+				bg = image_info['background_id']
+				grasp_id = image_info['grasp_id']
+				location_xyz = image_info['location_xyz']
+				object_id = image_info['object_id']
+				pose_quaternion_wxyz = image_info['pose_quaternion_wxyz']
+				image_id = int(js.replace(".json", ""))
+
+				# Reset directory im count
+				self.im_count = image_id
+				# Reset blender im count
+				current_frame = bpy.context.scene.frame_current
+				bpy.context.scene.frame_set(image_id)
+
+				# Initialise the nodes setup
+				N.node_setting_init()
+
+				# Clear scene of mesh and light objects
+				utils_blender.clear_mesh()
+				utils_blender.clear_lights()
+				# Set background and corresponding lights
+				#self.set_background(bg)
+				#CL.set_psuedo_realistic_light_per_background(bg)
+
+				obj_name = "{}.glb".format(object_info["objects"][object_id]["shapenet_name"])
+				object_cat_idx = object_info["objects"][object_id]["category"]
+
+				if object_cat_idx == 1 or object_cat_idx == 2:
+					continue
+				
+				print("\n\n\n", object_cat_idx, "\n\n")
+				flip_box = image_info['flip_box']
+				model_path = os.path.join(DATA_FOLDER, 'object_models', 'meshes', obj_name)
+				cur_nocs_obj_path = os.path.join(DATA_FOLDER, 'object_models', 'meshes_nocs_texture', obj_name)
+				cur_obj_class = grasps_info['categories'][object_cat_idx]['name']
+				object_texspace_size = object_info['objects'][int(object_id)]['texture_space_variable']
+				
+				if grasp_id == None:
+					# place object on table
+					location, pose_quat = O.re_render_object(model_path,
+															 cur_obj_class,
+															 location_xyz,
+															 pose_quaternion_wxyz)
+					O.change_angle = 0
+				else:
+					grasp_name = "{0:04d}.glb".format(grasp_id)
+					grasp_path = os.path.join(DATA_FOLDER, 'grasps', 'meshes', grasp_name)
+					# place object and hand
+					hand_objects, location, pose_quat, flip_box_flag = O.re_render_object_and_hand(model_path,
+																									grasp_path,
+																									object_cat_idx,
+																									cur_obj_class,
+																									location_xyz,
+																									pose_quaternion_wxyz,
+																									flip_box)                                                                               
+				#self.render()
+
+				# Generate NOCS
+				location, pose_quat = O.generate_nocs(N, cur_nocs_obj_path, object_texspace_size)
+
+				# Generate annotation file
+				self.generate_annotation_for_current_generated_image(grasp_id, object_id, bg, O.get_initial_rotation(), pose_quat, location, flip_box) # , hand_texture)
+
+				# progress print
+				print("{}/{}: {}/{}\n".format(ind + 1, len(json_folders), self.im_count, len(json_files)))
+
+	def re_render_loop_old(self, subtype, subset):
 		"""
 		Loops over the saved images, and re-renders them.
 		"""
@@ -625,11 +776,12 @@ class Render :
 						loop_counter += 1
 
 
-	def generate_annotation_for_current_generated_image(self, graspID, objectID, backgroundID, pose, location, flip_box_flag):
+	def generate_annotation_for_current_generated_image(self, graspID, objectID, backgroundID, initial_rotation, pose, location, flip_box_flag):
 		info_dict = {}
 		info_dict['grasp_id'] = graspID
 		info_dict['object_id'] = objectID
 		info_dict['background_id'] = backgroundID
+		info_dict['initial_rotation'] = initial_rotation
 		info_dict['pose_quaternion_wxyz'] = pose
 		info_dict['location_xyz'] = location
 		info_dict['flip_box'] = flip_box_flag
@@ -722,8 +874,10 @@ CL.camera_init()			 # setup our camera
 start = time.time()
 
 # render
-R.loop_for_without_grasp(N, O, CL, start_idx=1, stop_idx=5, subtype="no_hand")
-R.loop_for_with_grasp(N, O, CL, start_idx=1, stop_idx=5, subtype="hand")
+# R.loop_for_without_grasp(N, O, CL, start_idx=1, stop_idx=5, subtype="no_hand")
+# R.loop_for_with_grasp(N, O, CL, start_idx=1, stop_idx=5, subtype="hand")
+
+R.re_render_nocs_loop()
 
 # end clock 
 end = time.time()
