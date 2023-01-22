@@ -101,7 +101,6 @@ class Nodes():
         links.new(multiply_node.outputs["Value"], set_alpha_node.inputs["Image"])
         links.new(set_alpha_node.outputs["Image"], file_output_depth_node.inputs["Image"])
 
-
     def set_nocs_nodes(self):
         """Initializes the node setup for rendering 
         the NOCS maps (i.e. normalised 3D coordinates)

@@ -881,10 +881,12 @@ class ObjectUtils():
 				ob.rotation_mode = 'XYZ'
 				ob.rotation_euler[2] = -1*angle
 				self.change_angle = -1 * angle  # In radians
+				print("\n\n SELF.CHANGE ANGEL BABY \n\n", self.change_angle)
 				# Apply the changes
 				ob.select_set(True)
 				bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
 				ob.select_set(False)
+
 
 	def rotation_z_matrix(self, theta):
 		rotation_matrix = [[np.cos(theta), -np.sin(theta),  0],
@@ -946,9 +948,9 @@ class ObjectUtils():
 		mat_links.new(tex_node.outputs["Generated"], mat_output_node.inputs[0])        
 
 
-		# TODO: combine change_angle with the location and quaternion
 
 		# convert change_angle to rotation matrix
+		print("change_angle:", self.change_angle)
 		rotation_sym_axis = self.rotation_z_matrix(self.change_angle); print(rotation_sym_axis)
 		r_sym = R.from_matrix(rotation_sym_axis)
 		r_sym = r_sym.as_matrix()
@@ -999,7 +1001,7 @@ class ObjectUtils():
 		obj.rotation_quaternion[1] = self.rotationx
 		obj.rotation_quaternion[2] = self.rotationy
 		obj.rotation_quaternion[3] = self.rotationz
-		print(self.locationx, self.locationy, self.locationz, self.rotationx, self.rotationy, self.rotationz)
+		print(self.locationx, self.locationy, self.locationz, self.rotationw, self.rotationx, self.rotationy, self.rotationz)
 		bpy.ops.object.transform_apply(location=True, scale=True, rotation=True)
 
 		# go into material preview
@@ -1049,3 +1051,206 @@ class ObjectUtils():
 		p_q = [self.rotationw, self.rotationx, self.rotationy, self.rotationz]
 		return l, p_q
 
+	def regenerate_nocs(self, N, cur_nocs_obj_path, texspace_size, change_angle, locationxyz, pose_quaternion_wxyz):
+		"""
+		Loads object with NOCS-map material and places it in the same location and rotation.
+
+		Speed up tip: https://blender.stackexchange.com/questions/159538/how-to-apply-all-transformations-to-an-object-at-low-level
+		"""
+
+		# delete previous mesh
+		utils_blender.clear_mesh()
+
+		# import object
+		bpy.ops.import_scene.gltf(filepath=cur_nocs_obj_path)
+
+		# replace object with vertex object at same position
+		# Select object
+		scene = bpy.context.scene
+		for ob in scene.objects:
+			ob.select_set(False)
+			if ob.type == 'MESH':
+				bpy.context.view_layer.objects.active = ob
+		obj = bpy.context.view_layer.objects.active
+
+		# Load the texture space
+		#texspace_size = np.loadtxt(self.cur_texspace_path)
+		# Set the texture space size
+		obj_mesh_name = obj.data.name
+		obj.show_texture_space = True
+		bpy.data.meshes[obj_mesh_name].use_auto_texspace = False
+		bpy.data.meshes[obj_mesh_name].texspace_size = texspace_size, texspace_size, texspace_size
+		
+		# Remove other material
+		obj.data.materials.clear()
+
+		# Make a new material
+		nocs_mat = bpy.data.materials.new('nocs_material')
+		nocs_mat.use_nodes = True
+		bpy.data.meshes[obj_mesh_name].materials.append(nocs_mat)
+		
+		# deactivate shadows
+		nocs_mat.shadow_method = 'NONE'
+		mat_nodes = nocs_mat.node_tree.nodes
+		mat_links = nocs_mat.node_tree.links
+
+		# Get default things in material
+		for n in mat_nodes:
+			if n.name == "Material Output":
+				mat_output_node = n
+			if n.name == "Principled BSDF":
+				for link in n.inputs[0].links:
+					nocs_mat.node_tree.links.remove(link)
+
+		# Set texture node to create NOCS colors
+		tex_node = mat_nodes.new('ShaderNodeTexCoord')
+		# set new link - bypassing principle node
+		mat_links.new(tex_node.outputs["Generated"], mat_output_node.inputs[0])        
+
+
+
+		# convert change_angle to rotation matrix
+		#print("\nchange_angle:", change_angle)
+		rotation_sym_axis = self.rotation_z_matrix(change_angle)
+		#print("rotation_sym_axis", rotation_sym_axis)
+		r_sym = R.from_matrix(rotation_sym_axis)
+		r_sym = r_sym.as_matrix()
+		#print("rotation (sym) matrix", r_sym)
+
+		# -- Convert wxyz to rotation matrix
+		# wxyz -> xyzw
+		quat_before_xyzw = [pose_quaternion_wxyz[1], pose_quaternion_wxyz[2], pose_quaternion_wxyz[3], pose_quaternion_wxyz[0]]
+		#quat_before = [self.rotationx, self.rotationy, self.rotationz, self.rotationw]; 
+		#print("\nquat before:", quat_before_xyzw)
+		r_quat = R.from_quat(quat_before_xyzw) # xyzw
+		r_quat = r_quat.as_matrix()
+		#print("rotation (quat) matrix", r_quat)
+
+		# combine both rotation matrices into one (note the order)
+		r_combined = r_quat @ r_sym
+		#print("r_combined matrix", r_combined)
+
+		# revert back to quaternion
+		quat_combined = R.from_matrix(r_combined) #xyzw
+		quat_combined = quat_combined.as_quat()
+		#print("quaternion combined (xyzw):", quat_combined, "\n\n")
+
+		# self.rotationw = quat_combined[3]
+		# self.rotationx = quat_combined[0]
+		# self.rotationy = quat_combined[1]
+		# self.rotationz = quat_combined[2]
+
+		# # set location
+		# obj.location[0] = locationxyz[0] #self.locationx
+		# obj.location[1] = locationxyz[1]
+		# obj.location[2] = locationxyz[2]
+		# # set rotation
+		# obj.rotation_mode = 'QUATERNION' #'XYZ'
+		# obj.rotation_quaternion[0] = self.rotationw
+		# obj.rotation_quaternion[1] = self.rotationx
+		# obj.rotation_quaternion[2] = self.rotationy
+		# obj.rotation_quaternion[3] = self.rotationz
+		# #print(self.locationx, self.locationy, self.locationz, self.rotationw, self.rotationx, self.rotationy, self.rotationz)
+		# bpy.ops.object.transform_apply(location=True, scale=True, rotation=True)
+
+		obj.location[0] = locationxyz[0]
+		obj.location[1] = locationxyz[1]
+		obj.location[2] = locationxyz[2]
+		obj.rotation_mode = 'QUATERNION' #'XYZ'
+		obj.rotation_quaternion[0] = quat_combined[3]
+		obj.rotation_quaternion[1] = quat_combined[0]
+		obj.rotation_quaternion[2] = quat_combined[1]
+		obj.rotation_quaternion[3] = quat_combined[2]
+		
+		# Get context
+		context = bpy.context
+		# Get object
+		ob = context.object
+		# Get matrix basis
+		mb = ob.matrix_basis
+		ml = ob.matrix_local
+		mw = ob.matrix_world
+		# Transform
+		# if hasattr(ob.data, "transform"):
+		# 	ob.data.transform(mb)
+		# Apply transformation
+		for c in ob.children:
+			c.matrix_local = mb @ c.matrix_local
+			#c.matrix_global = mb @ c.matrix_global
+		# set identity
+		#ob.matrix_basis.identity()
+		#ob.matrix_local.identity()
+		#ob.matrix_world.identity()
+		#ob.data.update()
+
+		# TODO: change this operator
+		#bpy.ops.object.transform_apply(location=True, scale=True, rotation=True)
+
+		# go into material preview
+		my_areas = bpy.context.workspace.screens[0].areas
+		my_shading = 'MATERIAL'  # 'WIREFRAME' 'SOLID' 'MATERIAL' 'RENDERED'
+
+		for area in my_areas:
+			for space in area.spaces:
+				if space.type == 'VIEW_3D':
+					space.shading.type = my_shading
+
+		# set dimensions and path of this scene
+		sce = bpy.context.scene.name
+		
+		# Set NOCS node setup
+		N.set_nocs_nodes()
+
+		# Set unedited colors
+		#bpy.data.scenes[sce].view_settings.view_transform = "Standard" # Default is Filmic
+		
+
+		# Render NOCS
+		bpy.data.scenes[sce].view_settings.view_transform = "Raw" # Default is Filmic
+		bpy.data.scenes[sce].cycles.samples = 1
+		bpy.data.scenes[sce].cycles.use_denoising = False
+
+		# Stop program
+		#xxx = json5
+
+		bpy.ops.render.render(write_still=True)
+		
+		# Reverse settings back to standard
+		# bpy.data.scenes[sce].view_settings.view_transform = "Standard" # Default is Filmic
+		# bpy.data.scenes[sce].cycles.samples = 2048 # NOTE: can turn this down, or add time limit
+		# bpy.data.scenes[sce].cycles.use_denoising = True
+
+		#"Current Frame, to update animation data from python frame_set() instead"
+		current_frame = bpy.context.scene.frame_current
+		# #"Set scene frame updating all objects immediately"
+		bpy.context.scene.frame_set(current_frame + 1)
+
+		# Set ORIGINAL node setup
+		N.node_setting_init()
+		bpy.data.scenes[sce].display_settings.display_device = "sRGB"
+
+		bpy.data.scenes[sce].render.filepath = ""
+
+		# for block in bpy.data.images:
+		# 	bpy.data.images.remove(block)
+		
+		for block in bpy.data.meshes:
+			if block.users == 0:
+				bpy.data.meshes.remove(block)
+
+		for block in bpy.data.materials:
+			if block.users == 0:
+				bpy.data.materials.remove(block)
+
+		for block in bpy.data.textures:
+			if block.users == 0:
+				bpy.data.textures.remove(block)
+
+		for block in bpy.data.images:
+			if block.users == 0:
+				bpy.data.images.remove(block)
+
+		# Return updated transformation
+		l = locationxyz
+		p_q = [quat_combined[3], quat_combined[0], quat_combined[1], quat_combined[2]]
+		return l, p_q

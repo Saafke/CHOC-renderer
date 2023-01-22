@@ -276,7 +276,7 @@ class Render :
 		config.paths['info_dir'] = batch_info_dir
 	   # config.paths['aff_dir'] = batch_affordance_dir
 
-	def re_render_nocs_loop(self):
+	def re_render_nocs_loop(self, folder_index):
 		"""
 		Loops over the saved images, and re-renders the NOCS maps, while fixing the NOCS map rotation bug(s).
 
@@ -290,16 +290,26 @@ class Render :
 		object_info = json.load(f)
 		f = open(os.path.join(DATA_FOLDER, 'grasps', 'grasp_datastructure.json'))
 		grasps_info = json.load(f)
+		f = open('./mapping_graspID_2_changeAngle.json')
+		graspID_2_changeAngle = json.load(f)
 
 		# Loop over the JSON files
 		json_root_dir = os.path.join(DATA_FOLDER, 'annotations')
 		json_folders = os.listdir(json_root_dir)
 		json_folders.sort()
 		for ind, js_folder in enumerate(json_folders):
+			
+			# Only do this folder if specified
+			if folder_index != None:
+				if ind != int(folder_index):
+					continue
+			
 			json_dir = os.path.join(DATA_FOLDER, json_root_dir, js_folder)
 			json_files = os.listdir(json_dir)
 			json_files.sort()
+
 			self.set_re_render_nocs_paths(js_folder)
+			
 			for js in json_files:
 				f = open(os.path.join(json_dir, js))
 				image_info = json.load(f)
@@ -341,35 +351,67 @@ class Render :
 				cur_obj_class = grasps_info['categories'][object_cat_idx]['name']
 				object_texspace_size = object_info['objects'][int(object_id)]['texture_space_variable']
 				
-				if grasp_id == None:
-					# place object on table
-					location, pose_quat = O.re_render_object(model_path,
-															 cur_obj_class,
-															 location_xyz,
-															 pose_quaternion_wxyz)
-					O.change_angle = 0
-				else:
-					grasp_name = "{0:04d}.glb".format(grasp_id)
-					grasp_path = os.path.join(DATA_FOLDER, 'grasps', 'meshes', grasp_name)
-					# place object and hand
-					hand_objects, location, pose_quat, flip_box_flag = O.re_render_object_and_hand(model_path,
-																									grasp_path,
-																									object_cat_idx,
-																									cur_obj_class,
-																									location_xyz,
-																									pose_quaternion_wxyz,
-																									flip_box)                                                                               
-				#self.render()
+				# TODO:
+				
+				# Read change_angle
+				change_angle = graspID_2_changeAngle[str(grasp_id)]
+				print("change_angle for grasp_id {}: {}".format(grasp_id, change_angle))
 
-				# Generate NOCS
-				location, pose_quat = O.generate_nocs(N, cur_nocs_obj_path, object_texspace_size)
+				location, pose_quat = O.regenerate_nocs(N, cur_nocs_obj_path, object_texspace_size, change_angle, location_xyz, pose_quaternion_wxyz)
+
+				# if grasp_id == None:
+				# 	# place object on table
+				# 	location, pose_quat = O.re_render_object(model_path,
+				# 											 cur_obj_class,
+				# 											 location_xyz,
+				# 											 pose_quaternion_wxyz)
+				# 	O.change_angle = 0
+				# else:
+				# 	grasp_name = "{0:04d}.glb".format(grasp_id)
+				# 	grasp_path = os.path.join(DATA_FOLDER, 'grasps', 'meshes', grasp_name)
+				# 	# place object and hand
+				# 	_, _, _, _ = O.re_render_object_and_hand(	model_path,
+				# 												grasp_path,
+				# 												object_cat_idx,
+				# 												cur_obj_class,
+				# 												location_xyz,
+				# 												pose_quaternion_wxyz,
+				# 												flip_box)                                                                               
+				# #self.render()
+
+				# #Generate NOCS
+				# location, pose_quat = O.generate_nocs(N, cur_nocs_obj_path, object_texspace_size)
 
 				# Generate annotation file
-				self.generate_annotation_for_current_generated_image(grasp_id, object_id, bg, O.get_initial_rotation(), pose_quat, location, flip_box) # , hand_texture)
+				self.generate_annotation_for_current_generated_image(grasp_id, object_id, bg, change_angle, pose_quat, location, flip_box) # , hand_texture)
+
+				#self.clear_cache()
 
 				# progress print
 				print("{}/{}: {}/{}\n".format(ind + 1, len(json_folders), self.im_count, len(json_files)))
 
+	def clear_cache(self):
+		"""
+		https://github.com/KhronosGroup/glTF-Blender-IO/issues/1701
+		"""
+		for bpy_data_iter in (
+			bpy.data.objects,
+			bpy.data.meshes,
+			bpy.data.lights,
+			#bpy.data.cameras,
+			#bpy.data.images,
+			bpy.data.textures,
+			bpy.data.materials,
+		):
+			for id_data in bpy_data_iter:
+				bpy_data_iter.remove(id_data)
+		for collection in bpy.data.collections:
+			bpy.data.collections.remove(collection)
+		for action in bpy.data.actions:
+			bpy.data.actions.remove(action)
+		for rig in bpy.data.armatures:
+			bpy.data.armatures.remove(rig)
+	
 	def re_render_loop_old(self, subtype, subset):
 		"""
 		Loops over the saved images, and re-renders them.
@@ -851,10 +893,11 @@ class Render :
 # Read arguments after "--"
 argv = sys.argv
 argv = argv[argv.index("--") + 1:] 
-if len(argv) < 2:
-	raise Exception("Please specify the path to the dataset folder AND the path to the output folder")
+if len(argv) < 3:
+	raise Exception("Please specify 1. the path to the dataset folder, 2. the path to the output folder, 3. folder number")
 DATA_FOLDER = argv[0]
 RENDER_OUT_FOLDER = argv[1]
+folder_index = argv[2]
 #half = argv[2] # either first or second (to split the rendering over 2 computers)
 
 # Import classes
@@ -877,7 +920,7 @@ start = time.time()
 # R.loop_for_without_grasp(N, O, CL, start_idx=1, stop_idx=5, subtype="no_hand")
 # R.loop_for_with_grasp(N, O, CL, start_idx=1, stop_idx=5, subtype="hand")
 
-R.re_render_nocs_loop()
+R.re_render_nocs_loop(folder_index)
 
 # end clock 
 end = time.time()
