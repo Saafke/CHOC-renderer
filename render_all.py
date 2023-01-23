@@ -314,13 +314,13 @@ class Render :
 		json_folders.sort()
 		for ind, js_folder in enumerate(json_folders):
 			
-			if ind < 23:
-				continue
+			# if ind < 23:
+			# 	continue
 			
-			# # Only do this folder if specified
-			# if folder_index != None:
-			# 	if ind != int(folder_index):
-			# 		continue
+			# Only do this folder if specified
+			if folder_index != None:
+				if ind != int(folder_index):
+					continue
 			
 			json_dir = os.path.join(DATA_FOLDER, json_root_dir, js_folder)
 			json_files = os.listdir(json_dir)
@@ -359,7 +359,7 @@ class Render :
 				obj_name = "{}.glb".format(object_info["objects"][object_id]["shapenet_name"])
 				object_cat_idx = object_info["objects"][object_id]["category"]
 
-				if object_cat_idx == 1 or object_cat_idx == 2:
+				if object_cat_idx == 0:
 					continue
 				
 				print("\n\n\n", object_cat_idx, "\n\n")
@@ -835,7 +835,6 @@ class Render :
 
 						loop_counter += 1
 
-
 	def generate_annotation_for_current_generated_image(self, graspID, objectID, backgroundID, initial_rotation, pose, location, flip_box_flag):
 		info_dict = {}
 		info_dict['grasp_id'] = graspID
@@ -941,7 +940,7 @@ if len(argv) < 2:
 	raise Exception("Please specify 1. the path to the dataset folder, 2. the path to the output folder, 3. folder number")
 DATA_FOLDER = argv[0]
 RENDER_OUT_FOLDER = argv[1]
-#folder_index = argv[2]
+folder_index = argv[2]
 #half = argv[2] # either first or second (to split the rendering over 2 computers)
 
 # Import classes
@@ -965,7 +964,7 @@ start = time.time()
 # R.loop_for_without_grasp(N, O, CL, start_idx=1, stop_idx=5, subtype="no_hand")
 # R.loop_for_with_grasp(N, O, CL, start_idx=1, stop_idx=5, subtype="hand")
 
-R.re_render_nocs_loop(None)
+R.re_render_nocs_loop(folder_index)
 
 # end clock 
 end = time.time()
