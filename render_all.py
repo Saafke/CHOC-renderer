@@ -110,8 +110,8 @@ class Render :
 		if use_gpu:
 			prefs = bpy.context.preferences.addons['cycles'].preferences
 			devices = prefs.get_devices()
-			print(devices)
-			#prefs.compute_device_type = 'CUDA'
+			print("Devices:", devices)
+			prefs.compute_device_type = 'CUDA'
 			#devices[0][0].use = True
 			bpy.data.scenes[sce].render.engine = 'CYCLES' #only cycles engine can use gpu
 			bpy.data.scenes[sce].cycles.device = 'GPU'
@@ -119,7 +119,22 @@ class Render :
 			# To speed up the rendering, while keeping the realism
 			bpy.data.scenes[sce].cycles.max_bounces = 6
 			bpy.data.scenes[sce].cycles.tile_size = 65536 #(256*256)
-		
+			
+			# # TRY
+			# scene = bpy.context.scene
+			# scene.cycles.device = 'GPU'
+			# prefs = bpy.context.preferences
+			# cprefs = prefs.addons['cycles'].preferences
+			# for compute_device_type in ('CUDA', 'OPENCL', 'NONE'):
+			# 	try:
+			# 		cprefs.compute_device_type = compute_device_type
+			# 		print("succes with:", compute_device_type)
+			# 		break
+			# 	except TypeError:
+			# 		pass
+			# for device in cprefs.devices:
+			# 	device.use = True
+
 		else:
 			bpy.data.scenes[sce].render.engine = 'BLENDER_EEVEE'
 			# bpy.data.scenes[sce].eevee.use_soft_shadows = False
@@ -299,10 +314,13 @@ class Render :
 		json_folders.sort()
 		for ind, js_folder in enumerate(json_folders):
 			
-			# Only do this folder if specified
-			if folder_index != None:
-				if ind != int(folder_index):
-					continue
+			if ind < 23:
+				continue
+			
+			# # Only do this folder if specified
+			# if folder_index != None:
+			# 	if ind != int(folder_index):
+			# 		continue
 			
 			json_dir = os.path.join(DATA_FOLDER, json_root_dir, js_folder)
 			json_files = os.listdir(json_dir)
@@ -890,14 +908,40 @@ class Render :
 		config.paths['nocs_dir'] = batch_nocs_dir
 		config.paths['info_dir'] = batch_info_dir
 
+	def enable_gpus(self, device_type):
+		preferences = bpy.context.preferences
+		cycles_preferences = preferences.addons["cycles"].preferences
+		cuda_devices, opencl_devices = cycles_preferences.get_devices()
+
+		if device_type == "CUDA":
+			devices = cuda_devices
+		elif device_type == "OPENCL":
+			devices = opencl_devices
+		else:
+			raise RuntimeError("Unsupported device type")
+
+		activated_gpus = []
+
+		for device in devices:
+			if device.type == "CPU":
+				device.use = False
+			else:
+				device.use = True
+				activated_gpus.append(device.name)
+
+		cycles_preferences.compute_device_type = device_type
+		bpy.context.scene.cycles.device = "GPU"
+
+		return activated_gpus
+
 # Read arguments after "--"
 argv = sys.argv
 argv = argv[argv.index("--") + 1:] 
-if len(argv) < 3:
+if len(argv) < 2:
 	raise Exception("Please specify 1. the path to the dataset folder, 2. the path to the output folder, 3. folder number")
 DATA_FOLDER = argv[0]
 RENDER_OUT_FOLDER = argv[1]
-folder_index = argv[2]
+#folder_index = argv[2]
 #half = argv[2] # either first or second (to split the rendering over 2 computers)
 
 # Import classes
@@ -909,6 +953,7 @@ O = utils_object.ObjectUtils()
 
 # Initialise the scene
 R.scene_setting_init(config.blender_param['gpu'])
+#R.enable_gpus("CUDA")
 utils_blender.clear_mesh()   # remove the mesh
 utils_blender.clear_lights() # remove the light
 CL.camera_init()			 # setup our camera
@@ -920,7 +965,7 @@ start = time.time()
 # R.loop_for_without_grasp(N, O, CL, start_idx=1, stop_idx=5, subtype="no_hand")
 # R.loop_for_with_grasp(N, O, CL, start_idx=1, stop_idx=5, subtype="hand")
 
-R.re_render_nocs_loop(folder_index)
+R.re_render_nocs_loop(None)
 
 # end clock 
 end = time.time()
